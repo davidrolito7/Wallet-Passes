@@ -75,19 +75,61 @@ class LoyaltyCard extends Model
 
     public function progressText(): string
     {
-        return $this->stamps_collected . ' / ' . $this->loyaltyProgram->total_stamps;
+        return $this->stamps_collected . ' / ' . $this->loyaltyProgram->total_stamps . ' visitas';
+    }
+
+    public function nextRewardText(): string
+    {
+        $next = $this->nextMilestone();
+
+        if ($next) {
+            $remaining = $next->stamp_count - $this->stamps_collected;
+            if ($remaining <= 0) {
+                return '¡Premio disponible: ' . $next->reward_title . '!';
+            }
+
+            return $remaining === 1
+                ? '¡1 visita para: ' . $next->reward_title . '!'
+                : 'Próximo premio en ' . $remaining . ' visitas: ' . $next->reward_title;
+        }
+
+        $remaining = $this->loyaltyProgram->total_stamps - $this->stamps_collected;
+
+        if ($remaining <= 0) {
+            return '¡Premio disponible: ' . $this->loyaltyProgram->reward_title . '!';
+        }
+
+        return $remaining === 1
+            ? '¡1 visita para completar!'
+            : 'Te faltan ' . $remaining . ' visitas para tu próximo premio';
+    }
+
+    public function nextMilestone(): ?LoyaltyMilestone
+    {
+        return $this->loyaltyProgram->milestones()
+            ->where('stamp_count', '>', $this->stamps_collected)
+            ->orderBy('stamp_count')
+            ->first();
     }
 
     public function stampVisual(): string
     {
-        $program = $this->loyaltyProgram;
-        $icon = $program->stampIconLabel();
-        $empty = '○';
+        $program  = $this->loyaltyProgram;
+        $icon     = $program->stampIconLabel();
+        $milestones = $program->milestoneCounts();
 
-        $stamps = str_repeat($icon . ' ', $this->stamps_collected);
-        $remaining = str_repeat($empty . ' ', max(0, $program->total_stamps - $this->stamps_collected));
+        $parts = [];
+        for ($i = 1; $i <= $program->total_stamps; $i++) {
+            $isMilestone = in_array($i, $milestones, true);
 
-        return trim($stamps . $remaining);
+            if ($i <= $this->stamps_collected) {
+                $parts[] = $isMilestone ? '★' : $icon;
+            } else {
+                $parts[] = $isMilestone ? '☆' : '○';
+            }
+        }
+
+        return implode(' ', $parts);
     }
 
     public function isReadyForReward(): bool

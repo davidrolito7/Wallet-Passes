@@ -3,16 +3,17 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\LoyaltyProgramResource\Pages;
-use App\Filament\Resources\LoyaltyProgramResource\RelationManagers;
 use App\Models\Business;
 use App\Models\LoyaltyProgram;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -39,6 +40,8 @@ class LoyaltyProgramResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->schema([
+
+            // ── Datos generales ─────────────────────────────────────────────
             Section::make('Programa')->schema([
                 Select::make('business_id')
                     ->label('Negocio')
@@ -61,25 +64,33 @@ class LoyaltyProgramResource extends Resource
                     ->default(true),
             ])->columns(2),
 
+            // ── Configuración de sellos ──────────────────────────────────────
             Section::make('Configuración de Sellos')->schema([
                 TextInput::make('total_stamps')
-                    ->label('Total de Sellos Requeridos')
+                    ->label('Total de Visitas Requeridas')
                     ->numeric()
                     ->default(10)
                     ->minValue(1)
                     ->maxValue(50)
-                    ->required(),
+                    ->required()
+                    ->live()
+                    ->helperText('Número de visitas necesarias para completar la tarjeta.'),
 
                 Select::make('stamp_icon')
-                    ->label('Icono de Sello')
+                    ->label('Sticker por Visita')
                     ->options([
                         'coffee' => '☕ Café',
                         'star'   => '⭐ Estrella',
                         'stamp'  => '🔵 Sello',
                         'heart'  => '❤️ Corazón',
+                        'fire'   => '🔥 Fuego',
+                        'crown'  => '👑 Corona',
+                        'gem'    => '💎 Gema',
+                        'bolt'   => '⚡ Rayo',
                     ])
                     ->default('coffee')
-                    ->required(),
+                    ->required()
+                    ->helperText('Icono que se marca en cada visita completada.'),
 
                 TextInput::make('stamp_icon_url')
                     ->label('URL de Icono Personalizado')
@@ -88,20 +99,84 @@ class LoyaltyProgramResource extends Resource
                     ->helperText('Opcional — solo si usas un icono personalizado.'),
             ])->columns(3),
 
-            Section::make('Premio')->schema([
-                TextInput::make('reward_title')
-                    ->label('Título del Premio')
-                    ->placeholder('Ej: Café gratis')
+            // ── Diseño de tarjeta ────────────────────────────────────────────
+            Section::make('Diseño de Tarjeta')->schema([
+                Select::make('card_font')
+                    ->label('Fuente de Textos')
+                    ->options([
+                        'roboto'      => 'Roboto (predeterminada)',
+                        'montserrat'  => 'Montserrat',
+                        'opensans'    => 'Open Sans',
+                        'ubuntu'      => 'Ubuntu',
+                    ])
+                    ->default('roboto')
                     ->required()
-                    ->maxLength(255),
-
-                Textarea::make('reward_description')
-                    ->label('Descripción del Premio')
-                    ->placeholder('Ej: 1 café de tu elección sin costo')
-                    ->rows(2)
-                    ->columnSpanFull(),
+                    ->helperText('Fuente usada en la imagen de sellos (requiere el .ttf en resources/fonts/).'),
             ])->columns(1),
 
+            // ── Premios ──────────────────────────────────────────────────────
+            Section::make('Premios')
+                ->description('Configura los premios para cada visita. Puedes agregar tantos como quieras — por ejemplo, un café a la 3ª visita, un descuento a la 7ª y el premio grande al completar.')
+                ->schema([
+                    // ── Premios intermedios (milestones) ────────────────────
+                    Repeater::make('milestones')
+                        ->label('Premios por Visita')
+                        ->relationship()
+                        ->schema([
+                            TextInput::make('stamp_count')
+                                ->label('En la visita #')
+                                ->numeric()
+                                ->minValue(1)
+                                ->required()
+                                ->live()
+                                ->helperText(fn (Get $get): string => 'Número de visita (máx. ' . ($get('../../total_stamps') ?: '?') . ')'),
+
+                            TextInput::make('reward_title')
+                                ->label('Premio')
+                                ->placeholder('Ej: Cookie gratis, 10% de descuento')
+                                ->required()
+                                ->maxLength(255),
+
+                            Textarea::make('reward_description')
+                                ->label('Descripción del premio (opcional)')
+                                ->rows(2)
+                                ->columnSpanFull(),
+
+                            Toggle::make('is_repeatable')
+                                ->label('Se repite cada ciclo')
+                                ->helperText('Si está activo, el premio se entrega cada vez que se alcance este número de visita.')
+                                ->default(false),
+                        ])
+                        ->columns(2)
+                        ->addActionLabel('+ Agregar premio intermedio')
+                        ->reorderable(false)
+                        ->collapsible()
+                        ->collapsed(false)
+                        ->itemLabel(fn (array $state): ?string =>
+                            filled($state['stamp_count']) && filled($state['reward_title'])
+                                ? 'Visita #' . $state['stamp_count'] . ' — ' . $state['reward_title']
+                                : null
+                        ),
+
+                    // ── Premio final ────────────────────────────────────────
+                    Section::make('Premio Final (al completar la tarjeta)')->schema([
+                        TextInput::make('reward_title')
+                            ->label('Premio')
+                            ->placeholder('Ej: Café gratis, Producto gratis')
+                            ->required()
+                            ->maxLength(255),
+
+                        Textarea::make('reward_description')
+                            ->label('Descripción')
+                            ->placeholder('Ej: 1 bebida de tu elección sin costo')
+                            ->rows(2)
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(1)
+                    ->compact(),
+                ]),
+
+            // ── Google Wallet ────────────────────────────────────────────────
             Section::make('Google Wallet')->schema([
                 TextInput::make('google_class_suffix')
                     ->label('Sufijo de Clase Google')
@@ -127,22 +202,32 @@ class LoyaltyProgramResource extends Resource
                     ->sortable(),
 
                 TextColumn::make('stamp_icon')
-                    ->label('Icono')
+                    ->label('Sticker')
                     ->formatStateUsing(fn ($state) => match ($state) {
                         'coffee' => '☕',
                         'star'   => '⭐',
                         'stamp'  => '🔵',
                         'heart'  => '❤️',
+                        'fire'   => '🔥',
+                        'crown'  => '👑',
+                        'gem'    => '💎',
+                        'bolt'   => '⚡',
                         default  => '●',
                     }),
 
                 TextColumn::make('total_stamps')
-                    ->label('Sellos')
-                    ->suffix(' sellos')
+                    ->label('Visitas')
+                    ->suffix(' visitas')
+                    ->sortable(),
+
+                TextColumn::make('milestones_count')
+                    ->label('Premios')
+                    ->counts('milestones')
+                    ->suffix(' configurados')
                     ->sortable(),
 
                 TextColumn::make('reward_title')
-                    ->label('Premio')
+                    ->label('Premio Final')
                     ->limit(30),
 
                 TextColumn::make('loyaltyCards_count')
@@ -172,9 +257,7 @@ class LoyaltyProgramResource extends Resource
 
     public static function getRelations(): array
     {
-        return [
-            RelationManagers\MilestonesRelationManager::class,
-        ];
+        return [];
     }
 
     public static function getPages(): array

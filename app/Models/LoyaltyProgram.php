@@ -18,6 +18,7 @@ class LoyaltyProgram extends Model
         'total_stamps',
         'stamp_icon',
         'stamp_icon_url',
+        'card_font',
         'reward_title',
         'reward_description',
         'google_class_suffix',
@@ -69,7 +70,30 @@ class LoyaltyProgram extends Model
             'star'   => '⭐',
             'stamp'  => '🔵',
             'heart'  => '❤️',
+            'fire'   => '🔥',
+            'crown'  => '👑',
+            'gem'    => '💎',
+            'bolt'   => '⚡',
             default  => '●',
         };
+    }
+
+    public function fontPath(): string
+    {
+        $map = [
+            'montserrat' => resource_path('fonts/Montserrat-Bold.ttf'),
+            'opensans'   => resource_path('fonts/OpenSans-Bold.ttf'),
+            'ubuntu'     => resource_path('fonts/Ubuntu-Bold.ttf'),
+        ];
+
+        $path = $map[$this->card_font] ?? resource_path('fonts/Roboto-Bold.ttf');
+
+        return file_exists($path) ? $path : resource_path('fonts/Roboto-Bold.ttf');
+    }
+
+    /** @return array{stamp_count:int,reward_title:string}[] */
+    public function milestoneCounts(): array
+    {
+        return $this->milestones->map(fn ($m) => $m->stamp_count)->toArray();
     }
 }

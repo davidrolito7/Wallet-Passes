@@ -81,20 +81,23 @@ class ViewLoyaltyCard extends ViewRecord
                     ->badge()
                     ->color(fn (LoyaltyCard $record) => $record->is_completed ? 'success' : 'primary'),
 
-                TextEntry::make('stamp_visual')
-                    ->label('Visualización')
-                    ->state(fn (LoyaltyCard $record) => $record->stampVisual())
-                    ->fontFamily('mono')
-                    ->columnSpanFull(),
-
-                TextEntry::make('loyaltyProgram.reward_title')
-                    ->label('Premio al completar'),
+                TextEntry::make('next_reward')
+                    ->label('Próximo Premio')
+                    ->state(fn (LoyaltyCard $record) => $record->nextRewardText())
+                    ->badge()
+                    ->color(fn (LoyaltyCard $record) => $record->is_completed ? 'success' : 'warning'),
 
                 TextEntry::make('is_completed')
                     ->label('Estado')
                     ->formatStateUsing(fn ($state) => $state ? 'Lista para canjear' : 'En progreso')
                     ->badge()
                     ->color(fn ($state) => $state ? 'success' : 'gray'),
+
+                TextEntry::make('stamp_visual')
+                    ->label('Visualización  (★ = premio)')
+                    ->state(fn (LoyaltyCard $record) => $record->stampVisual())
+                    ->fontFamily('mono')
+                    ->columnSpanFull(),
 
                 TextEntry::make('last_stamp_at')
                     ->label('Último Sello')
@@ -105,6 +108,35 @@ class ViewLoyaltyCard extends ViewRecord
                     ->dateTime('d/m/Y H:i')
                     ->placeholder('—'),
             ])->columns(3),
+
+            Section::make('Premios del Programa')->schema([
+                TextEntry::make('milestones_list')
+                    ->label('')
+                    ->state(function (LoyaltyCard $record) {
+                        $program    = $record->loyaltyProgram;
+                        $milestones = $program->milestones;
+                        $collected  = $record->stamps_collected;
+
+                        $lines = [];
+
+                        if ($milestones->isNotEmpty()) {
+                            foreach ($milestones as $m) {
+                                $done    = $collected >= $m->stamp_count;
+                                $marker  = $done ? '✓' : '○';
+                                $repeat  = $m->is_repeatable ? '  (repetible)' : '';
+                                $lines[] = "{$marker}  Sello #{$m->stamp_count}: {$m->reward_title}{$repeat}";
+                            }
+                            $lines[] = '';
+                        }
+
+                        $doneMain = $collected >= $program->total_stamps;
+                        $marker   = $doneMain ? '★' : '☆';
+                        $lines[]  = "{$marker}  Sello #{$program->total_stamps} (final): {$program->reward_title}";
+
+                        return implode("\n", $lines);
+                    })
+                    ->columnSpanFull(),
+            ])->collapsible(),
 
             Section::make('Historial de Sellos')->schema([
                 TextEntry::make('stamp_history')
