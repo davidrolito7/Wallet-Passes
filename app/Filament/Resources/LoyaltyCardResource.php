@@ -40,30 +40,34 @@ class LoyaltyCardResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->schema([
-            Section::make('Datos del Titular')->schema([
+            Section::make('Programa')->schema([
                 Select::make('loyalty_program_id')
-                    ->label('Programa')
+                    ->label('Programa de Lealtad')
                     ->options(
                         LoyaltyProgram::with('business')
                             ->get()
                             ->mapWithKeys(fn ($p) => [$p->id => $p->business->name . ' — ' . $p->name])
                     )
                     ->required()
-                    ->searchable(),
+                    ->searchable()
+                    ->columnSpanFull(),
+            ]),
 
+            Section::make('Datos del Titular')->schema([
                 TextInput::make('holder_name')
-                    ->label('Nombre del Titular')
+                    ->label('Nombre completo')
                     ->required()
                     ->maxLength(255),
 
                 TextInput::make('holder_email')
-                    ->label('Email')
+                    ->label('Correo electrónico')
                     ->email()
                     ->maxLength(255),
 
                 TextInput::make('holder_identifier')
-                    ->label('Identificador (dispositivo/QR)')
-                    ->maxLength(255),
+                    ->label('Identificador (QR / dispositivo)')
+                    ->maxLength(255)
+                    ->helperText('Opcional. Se usa para escanear la tarjeta desde la app.'),
             ])->columns(2),
         ]);
     }
@@ -75,27 +79,38 @@ class LoyaltyCardResource extends Resource
                 TextColumn::make('loyaltyProgram.business.name')
                     ->label('Negocio')
                     ->sortable()
-                    ->searchable(),
+                    ->searchable()
+                    ->weight('semibold'),
 
                 TextColumn::make('loyaltyProgram.name')
                     ->label('Programa')
                     ->sortable()
-                    ->searchable(),
+                    ->searchable()
+                    ->badge()
+                    ->color('primary'),
 
                 TextColumn::make('holder_name')
                     ->label('Titular')
                     ->searchable()
                     ->sortable(),
 
+                TextColumn::make('holder_email')
+                    ->label('Email')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('stamps_collected')
                     ->label('Progreso')
                     ->formatStateUsing(fn (LoyaltyCard $record) => $record->progressText())
+                    ->badge()
+                    ->color(fn (LoyaltyCard $record) => $record->is_completed ? 'success' : 'primary')
                     ->sortable(),
 
-                TextColumn::make('stamp_visual')
-                    ->label('Sellos')
-                    ->state(fn (LoyaltyCard $record) => $record->stampVisual())
-                    ->fontFamily('mono'),
+                TextColumn::make('next_reward_hint')
+                    ->label('Siguiente Premio')
+                    ->state(fn (LoyaltyCard $record) => $record->nextRewardText())
+                    ->limit(40)
+                    ->tooltip(fn (LoyaltyCard $record) => $record->nextRewardText()),
 
                 IconColumn::make('is_completed')
                     ->label('Completada')
@@ -132,15 +147,14 @@ class LoyaltyCardResource extends Resource
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('Agregar sello')
-                    ->modalDescription(fn (LoyaltyCard $record) => 'Agregar un sello a ' . $record->holder_name . '. Progreso actual: ' . $record->progressText())
+                    ->modalDescription(fn (LoyaltyCard $record) => $record->holder_name . ' · ' . $record->progressText())
                     ->action(function (LoyaltyCard $record) {
                         $result = app(LoyaltyService::class)->addStamp($record, 1, null, auth()->guard()->user()?->name);
 
                         $title = 'Sello agregado — ' . $result['card']->progressText();
 
                         if ($result['milestones']->isNotEmpty()) {
-                            $rewards = $result['milestones']->pluck('reward_title')->join(', ');
-                            $title .= ' 🎁 Premio desbloqueado: ' . $rewards;
+                            $title .= ' — Premio: ' . $result['milestones']->pluck('reward_title')->join(', ');
                         }
 
                         Notification::make()->title($title)->success()->send();
@@ -148,12 +162,12 @@ class LoyaltyCardResource extends Resource
                     ->visible(fn (LoyaltyCard $record) => ! $record->is_completed),
 
                 Action::make('redeem')
-                    ->label('Canjear Premio')
+                    ->label('Canjear')
                     ->icon('heroicon-o-gift')
                     ->color('warning')
                     ->requiresConfirmation()
                     ->modalHeading('Canjear premio')
-                    ->modalDescription(fn (LoyaltyCard $record) => 'Canjear "' . $record->loyaltyProgram->reward_title . '" para ' . $record->holder_name)
+                    ->modalDescription(fn (LoyaltyCard $record) => '"' . $record->loyaltyProgram->reward_title . '" para ' . $record->holder_name)
                     ->action(function (LoyaltyCard $record) {
                         app(LoyaltyService::class)->redeemReward($record, auth()->guard()->user()?->name);
                         Notification::make()->title('Premio canjeado')->success()->send();

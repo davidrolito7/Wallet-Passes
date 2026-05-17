@@ -7,6 +7,7 @@ use App\Models\LoyaltyCard;
 use App\Services\LoyaltyService;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
@@ -25,16 +26,16 @@ class ViewLoyaltyCard extends ViewRecord
                 ->icon('heroicon-o-plus-circle')
                 ->color('success')
                 ->requiresConfirmation()
+                ->modalHeading('Agregar sello')
+                ->modalDescription(fn () => 'Progreso actual: ' . $this->record->progressText())
                 ->action(function () {
-                    $result = app(LoyaltyService::class)->addStamp($this->record, 1, null, auth()->user()?->name);
+                    $result = app(LoyaltyService::class)->addStamp($this->record, 1, null, auth()->guard()->user()?->name);
                     $this->refreshFormData([]);
 
                     $title = 'Sello agregado — ' . $result['card']->progressText();
-                    $body = null;
-
-                    if ($result['milestones']->isNotEmpty()) {
-                        $body = '🎁 Premio desbloqueado: ' . $result['milestones']->pluck('reward_title')->join(', ');
-                    }
+                    $body  = $result['milestones']->isNotEmpty()
+                        ? 'Premio desbloqueado: ' . $result['milestones']->pluck('reward_title')->join(', ')
+                        : null;
 
                     Notification::make()->title($title)->body($body)->success()->send();
                 })
@@ -45,15 +46,17 @@ class ViewLoyaltyCard extends ViewRecord
                 ->icon('heroicon-o-gift')
                 ->color('warning')
                 ->requiresConfirmation()
+                ->modalHeading('Canjear premio')
+                ->modalDescription(fn () => 'Se registrará el canje y se reiniciará el ciclo.')
                 ->action(function () {
-                    app(LoyaltyService::class)->redeemReward($this->record, auth()->user()?->name);
+                    app(LoyaltyService::class)->redeemReward($this->record, auth()->guard()->user()?->name);
                     $this->refreshFormData([]);
                     Notification::make()->title('Premio canjeado — ciclo reiniciado')->success()->send();
                 })
                 ->visible(fn () => $this->record->is_completed),
 
             Action::make('google_wallet')
-                ->label('Ver en Google Wallet')
+                ->label('Google Wallet')
                 ->icon('heroicon-o-arrow-top-right-on-square')
                 ->color('gray')
                 ->url(fn () => $this->record->googlePass()?->addToWalletUrl())
@@ -66,97 +69,147 @@ class ViewLoyaltyCard extends ViewRecord
 
     public function infolist(Schema $schema): Schema
     {
-        return $schema->schema([
-            Section::make('Titular')->schema([
-                TextEntry::make('holder_name')->label('Nombre'),
-                TextEntry::make('holder_email')->label('Email'),
-                TextEntry::make('loyaltyProgram.business.name')->label('Negocio'),
-                TextEntry::make('loyaltyProgram.name')->label('Programa'),
-            ])->columns(2),
+        return $schema
+            ->columns(3)
+            ->schema([
 
-            Section::make('Progreso')->schema([
-                TextEntry::make('stamps_progress')
-                    ->label('Sellos')
-                    ->state(fn (LoyaltyCard $record) => $record->progressText())
-                    ->badge()
-                    ->color(fn (LoyaltyCard $record) => $record->is_completed ? 'success' : 'primary'),
+                // ── Columna izquierda: Titular ────────────────────────────
+                Section::make('Titular')
+                    ->icon('heroicon-o-user')
+                    ->schema([
+                        TextEntry::make('holder_name')
+                            ->label('Nombre')
+                            ->weight('bold'),
 
-                TextEntry::make('next_reward')
-                    ->label('Próximo Premio')
-                    ->state(fn (LoyaltyCard $record) => $record->nextRewardText())
-                    ->badge()
-                    ->color(fn (LoyaltyCard $record) => $record->is_completed ? 'success' : 'warning'),
+                        TextEntry::make('holder_email')
+                            ->label('Email')
+                            ->placeholder('—'),
 
-                TextEntry::make('is_completed')
-                    ->label('Estado')
-                    ->formatStateUsing(fn ($state) => $state ? 'Lista para canjear' : 'En progreso')
-                    ->badge()
-                    ->color(fn ($state) => $state ? 'success' : 'gray'),
+                        TextEntry::make('loyaltyProgram.business.name')
+                            ->label('Negocio'),
 
-                TextEntry::make('stamp_visual')
-                    ->label('Visualización  (★ = premio)')
-                    ->state(fn (LoyaltyCard $record) => $record->stampVisual())
-                    ->fontFamily('mono')
+                        TextEntry::make('loyaltyProgram.name')
+                            ->label('Programa')
+                            ->badge()
+                            ->color('primary'),
+                    ])
+                    ->columns(1)
+                    ->columnSpan(1),
+
+                // ── Columna derecha: Estado y progreso ────────────────────
+                Section::make('Progreso')
+                    ->icon('heroicon-o-chart-bar')
+                    ->schema([
+                        TextEntry::make('stamps_progress')
+                            ->label('Visitas')
+                            ->state(fn (LoyaltyCard $record) => $record->progressText())
+                            ->badge()
+                            ->color(fn (LoyaltyCard $record) => $record->is_completed ? 'success' : 'primary'),
+
+                        TextEntry::make('is_completed')
+                            ->label('Estado')
+                            ->formatStateUsing(fn ($state) => $state ? 'Lista para canjear' : 'En progreso')
+                            ->badge()
+                            ->color(fn ($state) => $state ? 'success' : 'gray'),
+
+                        TextEntry::make('next_reward')
+                            ->label('Próximo Premio')
+                            ->state(fn (LoyaltyCard $record) => $record->nextRewardText())
+                            ->badge()
+                            ->color(fn (LoyaltyCard $record) => $record->is_completed ? 'success' : 'warning')
+                            ->columnSpanFull(),
+
+                        TextEntry::make('last_stamp_at')
+                            ->label('Último Sello')
+                            ->dateTime('d/m/Y H:i')
+                            ->placeholder('—'),
+
+                        TextEntry::make('completed_at')
+                            ->label('Completada el')
+                            ->dateTime('d/m/Y H:i')
+                            ->placeholder('—'),
+                    ])
+                    ->columns(2)
+                    ->columnSpan(2),
+
+                // ── Premios del programa (tabla) ──────────────────────────
+                Section::make('Premios del Programa')
+                    ->icon('heroicon-o-trophy')
+                    ->schema([
+                        RepeatableEntry::make('program_rewards')
+                            ->label('')
+                            ->state(function (LoyaltyCard $record) {
+                                $program   = $record->loyaltyProgram;
+                                $collected = $record->stamps_collected;
+
+                                $rows = $program->milestones->map(fn ($m) => [
+                                    'visit'      => $m->stamp_count,
+                                    'reward'     => $m->reward_title,
+                                    'repeatable' => $m->is_repeatable ? 'Sí' : '—',
+                                    'status'     => $collected >= $m->stamp_count ? 'Obtenido' : 'Pendiente',
+                                ])->toArray();
+
+                                $rows[] = [
+                                    'visit'      => $program->total_stamps,
+                                    'reward'     => $program->reward_title . ' · Premio final',
+                                    'repeatable' => '—',
+                                    'status'     => $collected >= $program->total_stamps ? 'Obtenido' : 'Pendiente',
+                                ];
+
+                                return $rows;
+                            })
+                            ->schema([
+                                TextEntry::make('visit')
+                                    ->label('Visita #')
+                                    ->badge()
+                                    ->color('primary'),
+
+                                TextEntry::make('reward')
+                                    ->label('Premio'),
+
+                                TextEntry::make('repeatable')
+                                    ->label('Repetible'),
+
+                                TextEntry::make('status')
+                                    ->label('Estado')
+                                    ->badge()
+                                    ->color(fn (string $state) => $state === 'Obtenido' ? 'success' : 'gray'),
+                            ])
+                            ->columns(4)
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible()
                     ->columnSpanFull(),
 
-                TextEntry::make('last_stamp_at')
-                    ->label('Último Sello')
-                    ->dateTime('d/m/Y H:i'),
-
-                TextEntry::make('completed_at')
-                    ->label('Completada el')
-                    ->dateTime('d/m/Y H:i')
-                    ->placeholder('—'),
-            ])->columns(3),
-
-            Section::make('Premios del Programa')->schema([
-                TextEntry::make('milestones_list')
-                    ->label('')
-                    ->state(function (LoyaltyCard $record) {
-                        $program    = $record->loyaltyProgram;
-                        $milestones = $program->milestones;
-                        $collected  = $record->stamps_collected;
-
-                        $lines = [];
-
-                        if ($milestones->isNotEmpty()) {
-                            foreach ($milestones as $m) {
-                                $done    = $collected >= $m->stamp_count;
-                                $marker  = $done ? '✓' : '○';
-                                $repeat  = $m->is_repeatable ? '  (repetible)' : '';
-                                $lines[] = "{$marker}  Sello #{$m->stamp_count}: {$m->reward_title}{$repeat}";
-                            }
-                            $lines[] = '';
-                        }
-
-                        $doneMain = $collected >= $program->total_stamps;
-                        $marker   = $doneMain ? '★' : '☆';
-                        $lines[]  = "{$marker}  Sello #{$program->total_stamps} (final): {$program->reward_title}";
-
-                        return implode("\n", $lines);
-                    })
+                // ── Historial de sellos (tabla) ───────────────────────────
+                Section::make('Historial de Sellos')
+                    ->icon('heroicon-o-clock')
+                    ->schema([
+                        RepeatableEntry::make('stamp_history')
+                            ->label('')
+                            ->state(function (LoyaltyCard $record) {
+                                return $record->stampTransactions()
+                                    ->latest()
+                                    ->take(25)
+                                    ->get()
+                                    ->map(fn ($t) => [
+                                        'date'   => $t->created_at->format('d/m/Y H:i'),
+                                        'added'  => '+' . $t->stamps_added,
+                                        'total'  => $t->stamps_after . ' acumulados',
+                                    ])
+                                    ->toArray();
+                            })
+                            ->schema([
+                                TextEntry::make('date')->label('Fecha'),
+                                TextEntry::make('added')->label('Sellos')->badge()->color('success'),
+                                TextEntry::make('total')->label('Total'),
+                            ])
+                            ->columns(3)
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible()
+                    ->collapsed()
                     ->columnSpanFull(),
-            ])->collapsible(),
-
-            Section::make('Historial de Sellos')->schema([
-                TextEntry::make('stamp_history')
-                    ->label('')
-                    ->state(function (LoyaltyCard $record) {
-                        $transactions = $record->stampTransactions()
-                            ->latest()
-                            ->take(20)
-                            ->get();
-
-                        if ($transactions->isEmpty()) {
-                            return 'Sin sellos aún.';
-                        }
-
-                        return $transactions
-                            ->map(fn ($t) => $t->created_at->format('d/m/Y H:i') . ' — +' . $t->stamps_added . ' (total: ' . $t->stamps_after . ')')
-                            ->join("\n");
-                    })
-                    ->columnSpanFull(),
-            ]),
-        ]);
+            ]);
     }
 }
