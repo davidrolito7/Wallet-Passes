@@ -8,6 +8,7 @@ use App\Models\LoyaltyProgram;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -100,19 +101,90 @@ class LoyaltyProgramResource extends Resource
             ])->columns(3),
 
             // ── Diseño de tarjeta ────────────────────────────────────────────
-            Section::make('Diseño de Tarjeta')->schema([
-                Select::make('card_font')
-                    ->label('Fuente de Textos')
-                    ->options([
-                        'roboto'      => 'Roboto (predeterminada)',
-                        'montserrat'  => 'Montserrat',
-                        'opensans'    => 'Open Sans',
-                        'ubuntu'      => 'Ubuntu',
-                    ])
-                    ->default('roboto')
-                    ->required()
-                    ->helperText('Fuente usada en la imagen de sellos (requiere el .ttf en resources/fonts/).'),
-            ])->columns(1),
+            Section::make('Diseño de Tarjeta')
+                ->description('Elige un tema visual y sube tus propias imágenes de sello. Si no subes imágenes, se usa el estilo del tema seleccionado.')
+                ->schema([
+                    // ── Tema y fuente ──────────────────────────────────────
+                    Select::make('stamp_style')
+                        ->label('Tema Visual')
+                        ->options([
+                            'minimal' => '⬜ Minimal — limpio, usa tus colores de marca',
+                            'luxury'  => '✨ Luxury — fondo oscuro, sellos dorados',
+                            'neon'    => '💡 Neon — fondo negro, brillo eléctrico',
+                            'coffee'  => '☕ Coffee — tonos café cálidos',
+                            'retro'   => '📮 Retro — look de sello postal vintage',
+                        ])
+                        ->default('minimal')
+                        ->required()
+                        ->live()
+                        ->helperText('El tema se aplica solo si no subes imágenes personalizadas.'),
+
+                    Select::make('card_font')
+                        ->label('Fuente de Textos')
+                        ->options([
+                            'roboto'      => 'Roboto (predeterminada)',
+                            'montserrat'  => 'Montserrat',
+                            'opensans'    => 'Open Sans',
+                            'ubuntu'      => 'Ubuntu',
+                        ])
+                        ->default('roboto')
+                        ->required()
+                        ->helperText('Requiere el archivo .ttf en resources/fonts/.'),
+
+                    TextInput::make('stamp_scale')
+                        ->label('Escala de Sellos')
+                        ->numeric()
+                        ->minValue(0.5)
+                        ->maxValue(1.5)
+                        ->step(0.05)
+                        ->default(1.0)
+                        ->helperText('0.5 = mitad del tamaño, 1.0 = normal, 1.5 = grande'),
+
+                    TextInput::make('stamp_spacing')
+                        ->label('Espaciado (%)')
+                        ->numeric()
+                        ->minValue(5)
+                        ->maxValue(40)
+                        ->default(15)
+                        ->suffix('%')
+                        ->helperText('Espacio entre sellos. Más alto = más separados.'),
+
+                    // ── Assets de imagen personalizados ────────────────────
+                    FileUpload::make('filled_stamp_image')
+                        ->label('Imagen: Sello Completado')
+                        ->image()
+                        ->disk('public')
+                        ->directory('stamps/filled')
+                        ->acceptedFileTypes(['image/png', 'image/webp'])
+                        ->maxSize(2048)
+                        ->imagePreviewHeight('80')
+                        ->helperText('PNG/WebP con transparencia. Recomendado: 200×200 px.')
+                        ->columnSpan(1),
+
+                    FileUpload::make('empty_stamp_image')
+                        ->label('Imagen: Sello Vacío')
+                        ->image()
+                        ->disk('public')
+                        ->directory('stamps/empty')
+                        ->acceptedFileTypes(['image/png', 'image/webp'])
+                        ->maxSize(2048)
+                        ->imagePreviewHeight('80')
+                        ->helperText('PNG/WebP con transparencia. Recomendado: 200×200 px.')
+                        ->columnSpan(1),
+
+                    FileUpload::make('reward_badge_image')
+                        ->label('Imagen: Badge de Premio')
+                        ->image()
+                        ->disk('public')
+                        ->directory('stamps/rewards')
+                        ->acceptedFileTypes(['image/png', 'image/webp'])
+                        ->maxSize(2048)
+                        ->imagePreviewHeight('80')
+                        ->helperText('Insignia que aparece sobre sellos con premio. Recomendado: 60×60 px.')
+                        ->columnSpan(1),
+                ])
+                ->columns(4)
+                ->collapsible(),
 
             // ── Premios ──────────────────────────────────────────────────────
             Section::make('Premios')
