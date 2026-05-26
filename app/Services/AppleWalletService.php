@@ -28,7 +28,7 @@ class AppleWalletService
         $business = $program->business;
 
         $barcodeValue = 'loyalty:' . $card->id . ':' . md5($card->id . $card->created_at);
-        $iconDir      = storage_path('app/apple-pass');
+        $iconDir      = storage_path('images/');
         $logoPath     = public_path('images/brew-code-logo.png');
 
         $stripPaths = $this->stampImage->regenerateFor($card);
@@ -42,9 +42,9 @@ class AppleWalletService
             ->setForegroundColor($business->secondary_color)
             ->setLabelColor($business->label_color)
             ->setIconImage(
-                $iconDir . '/images/brew-code-icon.png',
-                $iconDir . '/images/brew-code-icon@2x.png',
-                $iconDir . '/images/brew-code-icon@3x.png',
+                $iconDir . 'brew-code-icon.png',
+                $iconDir . 'brew-code-icon@2x.png',
+                $iconDir . 'brew-code-icon@3x.png',
             )
             ->addHeaderField('program', $program->name, label: $business->name)
             ->addField('stamps', $this->stampsField($card), label: 'Sellos', changeMessage: 'Nuevo sello agregado')
