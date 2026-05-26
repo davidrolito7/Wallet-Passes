@@ -10,6 +10,13 @@ Route::get('/', function () {
 });
 
 // ──────────────────────────────────────────────────────────────
+// Apple & Google Wallet webservice routes (Spatie package)
+// Apple Wallet usa estas rutas para registrar dispositivos y
+// servir el .pkpass actualizado cuando hay cambios.
+// ──────────────────────────────────────────────────────────────
+Route::mobilePass();
+
+// ──────────────────────────────────────────────────────────────
 // Loyalty card public routes (no auth required — scannable QR)
 // ──────────────────────────────────────────────────────────────
 Route::prefix('loyalty')->name('loyalty.')->group(function () {
