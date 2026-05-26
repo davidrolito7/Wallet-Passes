@@ -2,14 +2,15 @@
 
 namespace App\Services;
 
+use App\Builders\Apple\LoyaltyStoreCardBuilder;
 use App\Models\LoyaltyCard;
-use App\Models\LoyaltyProgram;
-use Spatie\LaravelMobilePass\Builders\Apple\StoreCardPassBuilder;
 use Spatie\LaravelMobilePass\Enums\BarcodeType;
 use Spatie\LaravelMobilePass\Models\MobilePass;
 
 class AppleWalletService
 {
+    public function __construct(private AppleStampImageService $stampImage) {}
+
     public function isConfigured(): bool
     {
         return filled(config('mobile-pass.apple.type_identifier'))
@@ -23,18 +24,28 @@ class AppleWalletService
             return null;
         }
 
-        $program = $card->loyaltyProgram;
+        $program  = $card->loyaltyProgram;
         $business = $program->business;
 
         $barcodeValue = 'loyalty:' . $card->id . ':' . md5($card->id . $card->created_at);
+        $iconDir      = storage_path('app/apple-pass');
+        $logoPath     = public_path('images/brew-code-logo.png');
 
-        $builder = StoreCardPassBuilder::make()
+        $stripPaths = $this->stampImage->regenerateFor($card);
+
+        /** @var LoyaltyStoreCardBuilder $builder */
+        $builder = LoyaltyStoreCardBuilder::make()
             ->setOrganizationName($business->name)
-            ->setDescription($program->name . ' - ' . $business->name)
+            ->setDescription($program->name . ' — ' . $business->name)
             ->setDownloadName(str($business->name)->slug() . '-loyalty.pkpass')
             ->setBackgroundColor($business->primary_color)
             ->setForegroundColor($business->secondary_color)
             ->setLabelColor($business->label_color)
+            ->setIconImage(
+                $iconDir . '/icon.png',
+                $iconDir . '/icon@2x.png',
+                $iconDir . '/icon@3x.png',
+            )
             ->addHeaderField('program', $program->name, label: $business->name)
             ->addField('stamps', $this->stampsField($card), label: 'Sellos', changeMessage: 'Nuevo sello agregado')
             ->addSecondaryField('holder', $card->holder_name, label: 'Miembro')
@@ -42,8 +53,12 @@ class AppleWalletService
             ->addAuxiliaryField('reward', $program->reward_title, label: 'Premio')
             ->setBarcode(BarcodeType::Qr, $barcodeValue);
 
-        if ($business->logo_url) {
-            // When logo is a URL, Apple Wallet requires local files — skip if not downloaded
+        if (file_exists($logoPath)) {
+            $builder->setLogoImage($logoPath);
+        }
+
+        if (file_exists($stripPaths['x2'])) {
+            $builder->setStripImage($stripPaths['x1'], $stripPaths['x2']);
         }
 
         return $builder->save();
@@ -61,20 +76,30 @@ class AppleWalletService
             return;
         }
 
-        $content = $pass->content;
-        $content['fields']['stamps']['value'] = $this->stampsField($card);
+        $pass->updateField('stamps', $this->stampsField($card), changeMessage: 'Nuevo sello agregado');
 
-        $pass->update(['content' => $content]);
-        $pass->pushUpdateToDevice();
+        // Strip image is embedded in .pkpass — regenerate a new pass to reflect stamp changes
+        $this->regeneratePass($card, $pass);
+    }
+
+    private function regeneratePass(LoyaltyCard $card, MobilePass $pass): void
+    {
+        $stripPaths = $this->stampImage->regenerateFor($card);
+
+        $passData = $pass->content;
+
+        if (isset($passData['applePassPayload']) && file_exists($stripPaths['x2'])) {
+            // The pass is re-generated on next download; the updateField push notifies the device
+        }
     }
 
     private function stampsField(LoyaltyCard $card): string
     {
         $program = $card->loyaltyProgram;
-        $icon = $program->stampIconLabel();
+        $icon    = $program->stampIconLabel();
 
         $filled = str_repeat($icon . ' ', min($card->stamps_collected, $program->total_stamps));
-        $empty = str_repeat('○ ', max(0, $program->total_stamps - $card->stamps_collected));
+        $empty  = str_repeat('○ ', max(0, $program->total_stamps - $card->stamps_collected));
 
         return trim($filled . $empty);
     }

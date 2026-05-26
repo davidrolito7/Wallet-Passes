@@ -5,12 +5,15 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\LoyaltyCardResource\Pages;
 use App\Models\LoyaltyCard;
 use App\Models\LoyaltyProgram;
+use App\Services\AppleWalletService;
 use App\Services\LoyaltyService;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Illuminate\Database\Eloquent\Collection;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -118,6 +121,20 @@ class LoyaltyCardResource extends Resource
                     ->trueColor('success')
                     ->falseColor('gray'),
 
+                IconColumn::make('apple_pass_id')
+                    ->label('Apple')
+                    ->icon(fn ($state) => $state ? 'heroicon-o-check-circle' : 'heroicon-o-clock')
+                    ->color(fn ($state) => $state ? 'success' : 'gray')
+                    ->tooltip(fn ($state) => $state ? 'Pass generado' : 'Sin Apple Pass')
+                    ->toggleable(),
+
+                IconColumn::make('google_pass_id')
+                    ->label('Google')
+                    ->icon(fn ($state) => $state ? 'heroicon-o-check-circle' : 'heroicon-o-x-circle')
+                    ->color(fn ($state) => $state ? 'success' : 'danger')
+                    ->tooltip(fn ($state) => $state ? 'Pass generado' : 'Sin Google Pass')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('last_stamp_at')
                     ->label('Último Sello')
                     ->dateTime('d/m/Y H:i')
@@ -179,6 +196,35 @@ class LoyaltyCardResource extends Resource
             ])
             ->bulkActions([
                 BulkActionGroup::make([
+                    BulkAction::make('generate_apple_passes')
+                        ->label('Generar Apple Passes')
+                        ->icon('heroicon-o-device-phone-mobile')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Generar Apple Wallet Passes')
+                        ->modalDescription('Se generará el .pkpass para las tarjetas seleccionadas que no tengan uno aún.')
+                        ->action(function (Collection $records) {
+                            if (! app(AppleWalletService::class)->isConfigured()) {
+                                Notification::make()->title('Apple Wallet no configurado')->body('Verifica las variables MOBILE_PASS_APPLE_* en el .env')->danger()->send();
+                                return;
+                            }
+
+                            $loyalty = app(LoyaltyService::class);
+                            $generated = 0;
+
+                            foreach ($records as $card) {
+                                if ($loyalty->generateApplePass($card)) {
+                                    $generated++;
+                                }
+                            }
+
+                            Notification::make()
+                                ->title("Apple Passes generados: {$generated} de {$records->count()}")
+                                ->success()
+                                ->send();
+                        })
+                        ->visible(fn () => app(AppleWalletService::class)->isConfigured()),
+
                     DeleteBulkAction::make(),
                 ]),
             ])

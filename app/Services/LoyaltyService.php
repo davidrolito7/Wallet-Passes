@@ -16,6 +16,29 @@ class LoyaltyService
         private AppleWalletService $apple,
     ) {}
 
+    public function generateApplePass(LoyaltyCard $card): bool
+    {
+        if (! $this->apple->isConfigured()) {
+            return false;
+        }
+
+        $card->loadMissing('loyaltyProgram.business', 'loyaltyProgram.milestones');
+
+        if ($card->apple_pass_id) {
+            $this->apple->updatePass($card);
+            return true;
+        }
+
+        $applePass = $this->apple->createPass($card);
+
+        if ($applePass) {
+            $card->update(['apple_pass_id' => $applePass->id]);
+            return true;
+        }
+
+        return false;
+    }
+
     public function createCard(LoyaltyProgram $program, string $holderName, ?string $holderEmail = null, ?string $holderIdentifier = null): LoyaltyCard
     {
         $card = LoyaltyCard::create([

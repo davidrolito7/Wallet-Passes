@@ -6,7 +6,6 @@ use App\Models\LoyaltyCard;
 use App\Models\LoyaltyProgram;
 use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 
 class LoyaltyCardController extends Controller
@@ -61,7 +60,7 @@ class LoyaltyCardController extends Controller
     /**
      * Download the Apple Wallet .pkpass file.
      */
-    public function addToApple(LoyaltyCard $card)
+    public function addToApple(LoyaltyCard $card, Request $request)
     {
         $pass = $card->applePass();
 
@@ -69,12 +68,7 @@ class LoyaltyCardController extends Controller
             abort(503, 'Apple Wallet not yet configured. Check back soon!');
         }
 
-        $pkpass = $pass->generateApplePass();
-
-        return response($pkpass, 200, [
-            'Content-Type'        => 'application/vnd.apple.pkpass',
-            'Content-Disposition' => 'attachment; filename="loyalty.pkpass"',
-        ]);
+        return $pass->toResponse($request);
     }
 
     /**
@@ -106,11 +100,6 @@ class LoyaltyCardController extends Controller
             return response('Apple Wallet not yet configured.', 503);
         }
 
-        $pkpass = $pass->generateApplePass();
-
-        return response($pkpass, 200, [
-            'Content-Type'        => 'application/vnd.apple.pkpass',
-            'Content-Disposition' => 'attachment; filename="loyalty.pkpass"',
-        ]);
+        return redirect()->route('loyalty.apple', $card);
     }
 }

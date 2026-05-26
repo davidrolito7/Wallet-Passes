@@ -4,6 +4,7 @@ namespace App\Filament\Resources\LoyaltyCardResource\Pages;
 
 use App\Filament\Resources\LoyaltyCardResource;
 use App\Models\LoyaltyCard;
+use App\Services\AppleWalletService;
 use App\Services\LoyaltyService;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
@@ -62,6 +63,33 @@ class ViewLoyaltyCard extends ViewRecord
                 ->url(fn () => $this->record->googlePass()?->addToWalletUrl())
                 ->openUrlInNewTab()
                 ->visible(fn () => (bool) $this->record->google_pass_id),
+
+            Action::make('apple_wallet_download')
+                ->label('Apple Wallet')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->color('gray')
+                ->url(fn () => route('loyalty.apple', $this->record))
+                ->openUrlInNewTab()
+                ->visible(fn () => (bool) $this->record->apple_pass_id),
+
+            Action::make('generate_apple_pass')
+                ->label('Generar Apple Pass')
+                ->icon('heroicon-o-device-phone-mobile')
+                ->color('warning')
+                ->requiresConfirmation()
+                ->modalHeading('Generar Apple Wallet Pass')
+                ->modalDescription('Se generará el archivo .pkpass para esta tarjeta. El cliente podrá descargarlo desde su landing.')
+                ->action(function () {
+                    $ok = app(LoyaltyService::class)->generateApplePass($this->record);
+                    $this->refreshFormData([]);
+
+                    if ($ok) {
+                        Notification::make()->title('Apple Pass generado correctamente')->success()->send();
+                    } else {
+                        Notification::make()->title('Apple Wallet no está configurado')->body('Verifica las variables MOBILE_PASS_APPLE_* en el .env')->danger()->send();
+                    }
+                })
+                ->visible(fn () => ! $this->record->apple_pass_id && app(AppleWalletService::class)->isConfigured()),
 
             EditAction::make(),
         ];
