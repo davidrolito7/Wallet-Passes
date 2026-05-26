@@ -64,7 +64,18 @@ class AppleWalletService
             $builder->setStripImage($bgPath);
         }
 
-        return $builder->save();
+        $pass = $builder->save();
+
+        // Spatie's RegisterDeviceAction does findOrFail($passSerial) by primary key,
+        // so serialNumber in the pass JSON must equal the MobilePass id.
+        $content = $pass->content;
+        if (($content['serialNumber'] ?? null) !== $pass->id) {
+            $content['serialNumber'] = $pass->id;
+            MobilePass::withoutEvents(fn () => $pass->update(['content' => $content]));
+            $pass->content = $content;
+        }
+
+        return $pass;
     }
 
     public function updatePass(LoyaltyCard $card): void
