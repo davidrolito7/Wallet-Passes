@@ -11,8 +11,6 @@ use Spatie\LaravelMobilePass\Models\MobilePass;
 
 class GoogleWalletService
 {
-    public function __construct(private StampImageService $stampImage) {}
-
     public function ensureClass(LoyaltyProgram $program): void
     {
         $business = $program->business;
@@ -20,7 +18,7 @@ class GoogleWalletService
         LoyaltyPassClass::make($program->googleClassSuffix())
             ->setIssuerName($business->name)
             ->setProgramName($program->name)
-            ->setProgramLogoUrl($business->logo_url ?? config('app.url') . '/images/default-logo.png')
+            ->setProgramLogoUrl($business->logoPublicUrl() ?? config('app.url') . '/images/default-logo.png')
             ->setRewardsTier($program->reward_title)
             ->setRewardsTierLabel('Premio')
             ->setAccountNameLabel('Miembro')
@@ -36,7 +34,6 @@ class GoogleWalletService
 
         $barcodeValue = 'loyalty:' . $card->id . ':' . md5($card->id . $card->created_at);
 
-        // Build base pass via Spatie builder
         $pass = LoyaltyPassBuilder::make()
             ->setClass($program->googleClassSuffix())
             ->setAccountId('CARD-' . str_pad($card->id, 6, '0', STR_PAD_LEFT))
@@ -45,13 +42,8 @@ class GoogleWalletService
             ->setBarcode(BarcodeType::Qr, $barcodeValue)
             ->save();
 
-        // Enrich payload with visual fields and push to Google (triggers MobilePass::boot() → patch)
         $content = $pass->content;
-        $content['googleObjectPayload'] = $this->enrichPayload(
-            $content['googleObjectPayload'],
-            $card,
-            true
-        );
+        $content['googleObjectPayload'] = $this->buildPayload($content['googleObjectPayload'], $card);
         $pass->update(['content' => $content]);
 
         return $pass;
@@ -66,135 +58,99 @@ class GoogleWalletService
         }
 
         $content = $pass->content;
-
-        // Regenerate stamp image for the new stamp count
         $content['googleObjectPayload']['loyaltyPoints']['balance']['string'] = $this->balanceString($card);
-        $content['googleObjectPayload'] = $this->enrichPayload(
-            $content['googleObjectPayload'],
-            $card,
-            false
-        );
+        $content['googleObjectPayload'] = $this->buildPayload($content['googleObjectPayload'], $card);
 
-        // update() triggers MobilePass::boot() → PushPassUpdateJob → Google API PATCH
         $pass->update(['content' => $content]);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Payload enrichment
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── Payload ───────────────────────────────────────────────────────────────
 
-    /**
-     * Add premium visual fields to the Google Wallet object payload:
-     * - heroImage: dynamic stamp image
-     * - imageModulesData: secondary stamp image
-     * - textModulesData: member since, next reward, progress
-     */
-    private function enrichPayload(array $payload, LoyaltyCard $card, bool $regenerate): array
+    private function buildPayload(array $payload, LoyaltyCard $card): array
     {
         $program = $card->loyaltyProgram;
 
-        // ── Stamp image ──────────────────────────────────────────────────────
-        $imageUrl = $regenerate
-            ? $this->stampImage->regenerateFor($card)
-            : $this->stampImage->urlFor($card);
-
-        if ($imageUrl) {
-            // heroImage: full-width banner (most prominent)
+        // Hero image: imagen de fondo subida en Filament (misma que Apple Wallet strip)
+        $heroUrl = $program->backgroundImageUrl();
+        if ($heroUrl) {
             $payload['heroImage'] = [
-                'sourceUri' => ['uri' => $imageUrl],
+                'sourceUri'          => ['uri' => $heroUrl],
                 'contentDescription' => [
-                    'defaultValue' => [
-                        'language' => 'es',
-                        'value'    => $card->progressText() . ' sellos',
-                    ],
-                ],
-            ];
-
-            // imageModulesData: also shown in the pass body on some devices
-            $payload['imageModulesData'] = [
-                [
-                    'mainImage' => [
-                        'sourceUri' => ['uri' => $imageUrl],
-                        'contentDescription' => [
-                            'defaultValue' => [
-                                'language' => 'es',
-                                'value'    => 'Progreso de sellos',
-                            ],
-                        ],
-                    ],
-                    'id' => 'stamp_progress',
+                    'defaultValue' => ['language' => 'es', 'value' => $program->name],
                 ],
             ];
         }
 
-        // ── Text modules ─────────────────────────────────────────────────────
-        $payload['textModulesData'] = $this->buildTextModules($card);
+        // Text modules: info clave de la tarjeta
+        $payload['textModulesData'] = $this->textModules($card);
 
         return $payload;
     }
 
-    /**
-     * Build textModulesData sections: progress, next reward, member since.
-     */
-    private function buildTextModules(LoyaltyCard $card): array
+    private function textModules(LoyaltyCard $card): array
     {
-        $program  = $card->loyaltyProgram;
-        $business = $program->business;
-        $modules  = [];
+        $program = $card->loyaltyProgram;
+        $modules = [];
 
-        // Progress details
+        // Progreso
         $modules[] = [
-            'header' => 'Progreso',
-            'body'   => $card->stamps_collected . ' de ' . $program->total_stamps . ' visitas',
+            'header' => 'Visitas',
+            'body'   => $card->stamps_collected . ' de ' . $program->total_stamps,
             'id'     => 'progress',
         ];
 
-        // Final reward
+        // Próximo premio
         $modules[] = [
-            'header' => 'Premio al completar',
-            'body'   => $program->reward_title . ($program->reward_description ? ' — ' . $program->reward_description : ''),
+            'header' => 'Próximo Premio',
+            'body'   => $this->nextRewardText($card),
+            'id'     => 'next_reward',
+        ];
+
+        // Premio final
+        $modules[] = [
+            'header' => 'Premio al Completar',
+            'body'   => $program->reward_title,
             'id'     => 'final_reward',
         ];
 
-        // Next milestone if any
-        $nextMilestone = $program->milestones()
-            ->where('stamp_count', '>', $card->stamps_collected)
-            ->orderBy('stamp_count')
-            ->first();
-
-        if ($nextMilestone) {
-            $remaining = $nextMilestone->stamp_count - $card->stamps_collected;
-            $modules[] = [
-                'header' => 'Próximo premio',
-                'body'   => $nextMilestone->reward_title . ' (faltan ' . $remaining . ' ' . ($remaining === 1 ? 'visita' : 'visitas') . ')',
-                'id'     => 'next_milestone',
-            ];
-        }
-
-        // Member since
+        // Miembro desde
         if ($card->created_at) {
             $modules[] = [
                 'header' => 'Miembro desde',
-                'body'   => $card->created_at->translatedFormat('d \d\e F, Y'),
+                'body'   => $card->created_at->translatedFormat('F Y'),
                 'id'     => 'member_since',
-            ];
-        }
-
-        // Completed state
-        if ($card->is_completed) {
-            $modules[] = [
-                'header' => '¡Tarjeta completada!',
-                'body'   => 'Visita ' . $business->name . ' para canjear tu premio: ' . $program->reward_title,
-                'id'     => 'completed',
             ];
         }
 
         return $modules;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private function nextRewardText(LoyaltyCard $card): string
+    {
+        $program = $card->loyaltyProgram;
+
+        $next = $program->milestones()
+            ->where('stamp_count', '>', $card->stamps_collected)
+            ->orderBy('stamp_count')
+            ->first();
+
+        if ($next) {
+            $remaining = $next->stamp_count - $card->stamps_collected;
+            return $remaining <= 0
+                ? '¡' . $next->reward_title . ' disponible!'
+                : $next->reward_title . ' — faltan ' . $remaining . ' ' . ($remaining === 1 ? 'visita' : 'visitas');
+        }
+
+        $remaining = $program->total_stamps - $card->stamps_collected;
+
+        if ($remaining <= 0) {
+            return '¡' . $program->reward_title . ' disponible!';
+        }
+
+        return $program->reward_title . ' — faltan ' . $remaining . ' ' . ($remaining === 1 ? 'visita' : 'visitas');
+    }
 
     private function balanceString(LoyaltyCard $card): string
     {

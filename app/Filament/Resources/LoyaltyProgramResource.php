@@ -157,57 +157,26 @@ class LoyaltyProgramResource extends Resource
                 ->columns(1),
 
             // ─────────────────────────────────────────────────────────
-            // APARIENCIA
+            // IMÁGENES PARA WALLET
             // ─────────────────────────────────────────────────────────
-            Section::make('Diseño Visual')
-                ->description('Personaliza sellos e iconos.')
+            Section::make('Imágenes para Wallet')
+                ->description('Estas imágenes se muestran en Apple Wallet y Google Wallet.')
                 ->icon('heroicon-o-photo')
                 ->collapsible()
-                ->collapsed()
                 ->schema([
 
-                    TextInput::make('stamp_scale')
-                        ->label('Escala')
-                        ->numeric()
-                        ->default(1)
-                        ->step(0.05)
-                        ->suffix('x'),
-
-                    TextInput::make('stamp_spacing')
-                        ->label('Espaciado')
-                        ->numeric()
-                        ->default(15)
-                        ->suffix('%'),
-
-                    FileUpload::make('filled_stamp_image')
-                        ->label('Sello Completado')
+                    FileUpload::make('pass_background_image')
+                        ->label('Imagen de Fondo')
+                        ->helperText('PNG · Recomendado: 1032×300 px · Se usa como fondo en Apple Wallet (strip) y Google Wallet (hero)')
                         ->image()
-                        ->imageEditor()
-                        ->panelAspectRatio('1:1')
                         ->disk('public')
-                        ->directory('stamps/filled')
-                        ->imagePreviewHeight('140'),
-
-                    FileUpload::make('empty_stamp_image')
-                        ->label('Sello Vacío')
-                        ->image()
-                        ->imageEditor()
-                        ->panelAspectRatio('1:1')
-                        ->disk('public')
-                        ->directory('stamps/empty')
-                        ->imagePreviewHeight('140'),
-
-                    FileUpload::make('reward_badge_image')
-                        ->label('Badge de Premio')
-                        ->image()
-                        ->imageEditor()
-                        ->panelAspectRatio('1:1')
-                        ->disk('public')
-                        ->directory('stamps/rewards')
-                        ->imagePreviewHeight('160'),
+                        ->directory('programs/backgrounds')
+                        ->acceptedFileTypes(['image/png', 'image/jpeg', 'image/webp'])
+                        ->imagePreviewHeight('120')
+                        ->columnSpanFull(),
 
                 ])
-                ->columns(5),
+                ->columns(1),
 
             // ─────────────────────────────────────────────────────────
             // GOOGLE WALLET

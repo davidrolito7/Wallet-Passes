@@ -4,13 +4,12 @@ namespace App\Services;
 
 use App\Builders\Apple\LoyaltyStoreCardBuilder;
 use App\Models\LoyaltyCard;
+use Illuminate\Support\Facades\Storage;
 use Spatie\LaravelMobilePass\Enums\BarcodeType;
 use Spatie\LaravelMobilePass\Models\MobilePass;
 
 class AppleWalletService
 {
-    public function __construct(private AppleStampImageService $stampImage) {}
-
     public function isConfigured(): bool
     {
         return filled(config('mobile-pass.apple.type_identifier'))
@@ -28,7 +27,6 @@ class AppleWalletService
         $business = $program->business;
 
         $barcodeValue = 'loyalty:' . $card->id . ':' . md5($card->id . $card->created_at);
-        $stripPaths   = $this->stampImage->regenerateFor($card);
 
         /** @var LoyaltyStoreCardBuilder $builder */
         $builder = LoyaltyStoreCardBuilder::make()
@@ -39,22 +37,31 @@ class AppleWalletService
             ->setForegroundColor($business->secondary_color)
             ->setLabelColor($business->label_color)
             ->setIconImage(...$this->iconPaths())
-            ->addHeaderField('program', $program->name, label: $business->name)
-            ->addField('stamps', $this->stampsField($card), label: 'Sellos', changeMessage: 'Nuevo sello agregado')
+            // Header: nombre del programa / año de membresía
+            ->addHeaderField('member_since', 'Desde ' . $card->created_at->year, label: $business->name)
+            // Primary: contador de visitas (campo prominente)
+            ->addField('progress', $card->stamps_collected . ' / ' . $program->total_stamps, label: 'Visitas')
+            // Secondary: nombre y número de tarjeta
             ->addSecondaryField('holder', $card->holder_name, label: 'Miembro')
-            ->addSecondaryField('card-id', 'CARD-' . str_pad($card->id, 6, '0', STR_PAD_LEFT), label: 'No. Tarjeta')
-            ->addAuxiliaryField('reward', $program->reward_title, label: 'Premio')
+            ->addSecondaryField('card_id', 'CARD-' . str_pad($card->id, 6, '0', STR_PAD_LEFT), label: 'No. Tarjeta')
+            // Auxiliary: próximo premio
+            ->addAuxiliaryField('next_reward', $this->nextRewardText($card), label: 'Próximo Premio')
+            // Reverso de la tarjeta
+            ->addBackField('program_name', $program->name, label: 'Programa')
+            ->addBackField('total_stamps', $program->total_stamps . ' visitas para completar', label: 'Meta')
+            ->addBackField('reward', $program->reward_title, label: 'Premio Final')
             ->setBarcode(BarcodeType::Qr, $barcodeValue);
 
-        // Logo: descarga la URL del negocio y la embebe (igual que Google usa logo_url)
-        $logoPath = $this->fetchLogoPath($business->logo_url);
+        // Logo del negocio (descargado localmente desde la URL/storage del negocio)
+        $logoPath = $this->fetchLogoPath($business->logoPublicUrl());
         if ($logoPath) {
             $builder->setLogoImage($logoPath);
         }
 
-        // Strip: imagen dinámica de sellos generada localmente, embebida en el .pkpass
-        if (file_exists($stripPaths['x2'])) {
-            $builder->setStripImage($stripPaths['x1'], $stripPaths['x2']);
+        // Imagen de fondo del programa (sube el usuario en Filament)
+        $bgPath = $program->backgroundImagePath();
+        if ($bgPath && file_exists($bgPath)) {
+            $builder->setStripImage($bgPath);
         }
 
         return $builder->save();
@@ -72,23 +79,52 @@ class AppleWalletService
             return;
         }
 
-        // Regenera la imagen de sellos para el próximo download
-        $this->stampImage->regenerateFor($card);
-
-        $pass->updateField('stamps', $this->stampsField($card), changeMessage: 'Nuevo sello agregado');
+        $pass->updateField('progress', $card->stamps_collected . ' / ' . $card->loyaltyProgram->total_stamps, changeMessage: 'Nueva visita registrada');
+        $pass->updateField('next_reward', $this->nextRewardText($card));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    private function nextRewardText(LoyaltyCard $card): string
+    {
+        $program = $card->loyaltyProgram;
+
+        $next = $program->milestones()
+            ->where('stamp_count', '>', $card->stamps_collected)
+            ->orderBy('stamp_count')
+            ->first();
+
+        if ($next) {
+            $remaining = $next->stamp_count - $card->stamps_collected;
+            return $remaining <= 0
+                ? '¡' . $next->reward_title . ' disponible!'
+                : $next->reward_title . ' (faltan ' . $remaining . ')';
+        }
+
+        $remaining = $program->total_stamps - $card->stamps_collected;
+
+        if ($remaining <= 0) {
+            return '¡' . $program->reward_title . ' disponible!';
+        }
+
+        return $program->reward_title . ' (faltan ' . $remaining . ')';
+    }
+
     /**
      * Descarga la URL del logo del negocio a storage local y retorna el path.
-     * Apple Wallet necesita archivos locales; Google Wallet usa la URL directamente.
-     * El archivo se cachea por URL hash para no re-descargar en cada llamada.
+     * Cachea por hash de URL para no re-descargar en cada llamada.
+     * Si logo_url es un path de storage (FileUpload), lo resuelve directamente.
      */
     private function fetchLogoPath(?string $url): ?string
     {
         if (! $url) {
             return null;
+        }
+
+        // Si es un path relativo de storage (subido con FileUpload)
+        if (! str_starts_with($url, 'http')) {
+            $path = Storage::disk('public')->path($url);
+            return file_exists($path) ? $path : null;
         }
 
         $cacheDir = storage_path('app/apple-pass/logos');
@@ -103,33 +139,26 @@ class AppleWalletService
 
         try {
             $contents = @file_get_contents($url);
-            if ($contents === false) {
-                return null;
+            if ($contents !== false) {
+                file_put_contents($path, $contents);
+                return $path;
             }
-            file_put_contents($path, $contents);
-
-            return $path;
         } catch (\Throwable) {
-            return null;
         }
+
+        return null;
     }
 
     /**
-     * Retorna los paths de los iconos base (icon.png requerido por Apple Wallet).
-     * Los genera automáticamente si no existen (funciona en cualquier servidor).
+     * Genera los iconos base (29/58/87 px) si no existen.
+     * Requeridos por Apple Wallet — se auto-crean en cualquier servidor.
      */
     private function iconPaths(): array
     {
         $dir = storage_path('app/apple-pass');
         is_dir($dir) || mkdir($dir, 0755, true);
 
-        $sizes = [
-            'icon.png'    => 29,
-            'icon@2x.png' => 58,
-            'icon@3x.png' => 87,
-        ];
-
-        foreach ($sizes as $filename => $size) {
+        foreach ([29 => 'icon.png', 58 => 'icon@2x.png', 87 => 'icon@3x.png'] as $size => $filename) {
             $path = $dir . '/' . $filename;
             if (! file_exists($path)) {
                 $img = imagecreatetruecolor($size, $size);
@@ -144,16 +173,5 @@ class AppleWalletService
             $dir . '/icon@2x.png',
             $dir . '/icon@3x.png',
         ];
-    }
-
-    private function stampsField(LoyaltyCard $card): string
-    {
-        $program = $card->loyaltyProgram;
-        $icon    = $program->stampIconLabel();
-
-        $filled = str_repeat($icon . ' ', min($card->stamps_collected, $program->total_stamps));
-        $empty  = str_repeat('○ ', max(0, $program->total_stamps - $card->stamps_collected));
-
-        return trim($filled . $empty);
     }
 }

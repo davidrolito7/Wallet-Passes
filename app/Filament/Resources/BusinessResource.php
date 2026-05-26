@@ -8,6 +8,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\ColorPicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
@@ -51,10 +52,15 @@ class BusinessResource extends Resource
                     ->unique(ignoreRecord: true)
                     ->maxLength(255),
 
-                TextInput::make('logo_url')
-                    ->label('URL del Logo')
-                    ->url()
-                    ->maxLength(2048),
+                FileUpload::make('logo_url')
+                    ->label('Logo del Negocio')
+                    ->helperText('PNG con fondo transparente · Recomendado: 320×100 px')
+                    ->image()
+                    ->disk('public')
+                    ->directory('businesses/logos')
+                    ->acceptedFileTypes(['image/png', 'image/webp'])
+                    ->imagePreviewHeight('80')
+                    ->columnSpanFull(),
 
                 Toggle::make('is_active')
                     ->label('Activo')

@@ -23,6 +23,7 @@ class LoyaltyProgram extends Model
         'filled_stamp_image',
         'empty_stamp_image',
         'reward_badge_image',
+        'pass_background_image',
         'stamp_scale',
         'stamp_spacing',
         'reward_title',
@@ -62,6 +63,24 @@ class LoyaltyProgram extends Model
     public function completedCards(): HasMany
     {
         return $this->hasMany(LoyaltyCard::class)->where('is_completed', true);
+    }
+
+    public function backgroundImagePath(): ?string
+    {
+        if (! $this->pass_background_image) {
+            return null;
+        }
+
+        return \Storage::disk('public')->path($this->pass_background_image);
+    }
+
+    public function backgroundImageUrl(): ?string
+    {
+        if (! $this->pass_background_image) {
+            return null;
+        }
+
+        return \Storage::disk('public')->url($this->pass_background_image);
     }
 
     public function googleClassSuffix(): string

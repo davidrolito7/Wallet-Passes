@@ -30,6 +30,22 @@ class Business extends Model
         ];
     }
 
+    /**
+     * URL pública del logo, funciona tanto para rutas de storage como para URLs externas.
+     */
+    public function logoPublicUrl(): ?string
+    {
+        if (! $this->logo_url) {
+            return null;
+        }
+
+        if (str_starts_with($this->logo_url, 'http')) {
+            return $this->logo_url;
+        }
+
+        return \Storage::disk('public')->url($this->logo_url);
+    }
+
     public function loyaltyPrograms(): HasMany
     {
         return $this->hasMany(LoyaltyProgram::class);
