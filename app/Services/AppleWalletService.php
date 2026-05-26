@@ -42,9 +42,9 @@ class AppleWalletService
             ->setForegroundColor($business->secondary_color)
             ->setLabelColor($business->label_color)
             ->setIconImage(
-                $iconDir . '/icon.png',
-                $iconDir . '/icon@2x.png',
-                $iconDir . '/icon@3x.png',
+                $iconDir . '/images/brew-code-icon.png',
+                $iconDir . '/images/brew-code-icon@2x.png',
+                $iconDir . '/images/brew-code-icon@3x.png',
             )
             ->addHeaderField('program', $program->name, label: $business->name)
             ->addField('stamps', $this->stampsField($card), label: 'Sellos', changeMessage: 'Nuevo sello agregado')
