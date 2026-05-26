@@ -91,7 +91,7 @@ return [
     */
     'builders' => [
         'apple' => [
-            // 'my_custom_apple_pass' => MyCustomApplePassBuilder::class,
+            'loyalty_store_card_builder' => \App\Builders\Apple\LoyaltyStoreCardBuilder::class,
         ],
         'google' => [
             // 'my_custom_google_pass' => MyCustomGooglePassBuilder::class,
