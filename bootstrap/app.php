@@ -11,7 +11,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Apple Wallet webservice — el iPhone no envía CSRF tokens
+        $middleware->validateCsrfTokens(except: [
+            'passkit/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
