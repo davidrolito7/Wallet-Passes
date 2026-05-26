@@ -116,11 +116,28 @@ class AppleWalletService
 
     /**
      * Retorna los paths de los iconos base (icon.png requerido por Apple Wallet).
-     * Usa los iconos genéricos en storage/app/apple-pass/.
+     * Los genera automáticamente si no existen (funciona en cualquier servidor).
      */
     private function iconPaths(): array
     {
         $dir = storage_path('app/apple-pass');
+        is_dir($dir) || mkdir($dir, 0755, true);
+
+        $sizes = [
+            'icon.png'    => 29,
+            'icon@2x.png' => 58,
+            'icon@3x.png' => 87,
+        ];
+
+        foreach ($sizes as $filename => $size) {
+            $path = $dir . '/' . $filename;
+            if (! file_exists($path)) {
+                $img = imagecreatetruecolor($size, $size);
+                imagefilledrectangle($img, 0, 0, $size, $size, imagecolorallocate($img, 30, 30, 30));
+                imagepng($img, $path);
+                imagedestroy($img);
+            }
+        }
 
         return [
             $dir . '/icon.png',
