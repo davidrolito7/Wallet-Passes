@@ -22,7 +22,7 @@ class AppleStampImageService
     private const SCALE = 2;  // super-sample for anti-aliasing
     private const ROWS = 3;   // fixed 3-row layout
     private const COLS = 5;   // fixed 5-column layout
-    private const LAYOUT_VERSION = 'apple_layout_v3';
+    private const LAYOUT_VERSION = 'apple_layout_v4';
 
     /** @var array<string, \GdImage|null> */
     private array $assetCache = [];
@@ -104,20 +104,20 @@ class AppleStampImageService
 
         // Safe area for Apple Wallet strip.
         // Keeps stamps and milestone badges away from the strip edges.
-        $safePadX = (int) ($rW * 0.075);
-        $safePadY = (int) ($rH * 0.082);
+        $safePadX = (int) ($rW * 0.070);
+        $safePadY = (int) ($rH * 0.075);
 
         $availW = $rW - ($safePadX * 2);
         $availH = $rH - ($safePadY * 2);
 
         // Slightly more vertical breathing room between rows.
-        $gapY = (int) max(6 * self::SCALE, (int) ($rH * 0.048));
+        $gapY = (int) max(7 * self::SCALE, (int) ($rH * 0.052));
 
         // Compute stamp diameter from available height first.
         $maxByHeight = (int) floor(($availH - (($rows - 1) * $gapY)) / $rows);
 
         // Conservative size so stamps do not overflow vertically.
-        $stampD = (int) ($maxByHeight * 0.78);
+        $stampD = (int) ($maxByHeight * 0.84);
         $stampD = (int) ($stampD * $scale);
 
         // Prevent user scale from making stamps exceed the safe height.
