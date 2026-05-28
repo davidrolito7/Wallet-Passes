@@ -100,27 +100,32 @@ class StampImageService
         $this->drawBackground($canvas, $rW, $rH, $style, $bgR, $bgG, $bgB);
 
         // ── Stamp layout ─────────────────────────────────────────────────────
-        $rows   = self::ROWS;   // 3 filas
-        $perRow = self::COLS;   // 5 columnas → 15 sellos
+        $rows   = self::ROWS;   // 3 filas fijas
+        $perRow = self::COLS;   // 5 columnas fijas → 15 posiciones siempre
 
-        // Size constraint: narrower/shorter available area forces smaller, more separated stamps
-        $availW = (int) ($rW * 0.82);
-        $availH = (int) ($rH * 0.60);
+        // Wide zone so the grid fills the canvas; tall enough for medium-large stamps
+        $availW = (int) ($rW * 0.92);
+        $availH = (int) ($rH * 0.74);
 
-        // Generous gap to prioritise breathing room over stamp size
-        $gap = (int) max(10 * self::SCALE, (int) ($rW * 0.028));
+        // Vertical gap: proportional to height (binding constraint on a wide canvas)
+        $gapY = (int) max(4 * self::SCALE, (int) ($rH * 0.030));
 
-        $maxByWidth  = (int) floor(($availW - ($perRow - 1) * $gap) / $perRow);
-        $maxByHeight = (int) floor(($availH - ($rows   - 1) * $gap) / $rows);
-        // 0.68 keeps stamps clearly smaller than their cell, avoiding a saturated grid
-        $stampD = (int) (min($maxByWidth, $maxByHeight) * 0.68);
-        $stampD = (int) ($stampD * $scale);
+        // Stamp diameter from height — height is always the bottleneck (3:1 canvas)
+        $maxByHeight = (int) floor(($availH - ($rows - 1) * $gapY) / $rows);
+        $stampD      = (int) ($maxByHeight * 0.84);
+        $stampD      = (int) ($stampD * $scale);
 
-        $rowHeight  = $stampD + $gap;
-        $totalRowsH = $rows * $rowHeight - $gap;
-        // Centre the grid inside the stamp-safe zone (top 80 %, above the progress strip)
+        // Horizontal gap: calculated to spread 5 stamps evenly across the available width
+        $gapX = max($gapY, (int) floor(($availW - $perRow * $stampD) / ($perRow - 1)));
+
+        // Fixed 5×3 grid dimensions (independent of $total — always 15 positions)
+        $totalGridW = $perRow * $stampD + ($perRow - 1) * $gapX;
+        $totalGridH = $rows   * $stampD + ($rows   - 1) * $gapY;
+
+        // Horizontal: centre in canvas; vertical: centre above progress strip (top 80 %)
+        $startX  = (int) (($rW - $totalGridW) / 2);
         $usableH = (int) ($rH * 0.80);
-        $startY  = (int) (($usableH - $totalRowsH) / 2);
+        $startY  = (int) (($usableH - $totalGridH) / 2);
 
         $ctx = [
             'style'       => $style,
@@ -134,13 +139,9 @@ class StampImageService
 
         $stampN = 0;
         for ($row = 0; $row < $rows; $row++) {
-            $count  = ($row < $rows - 1) ? $perRow : ($total - $row * $perRow);
-            $rowW   = $count * $stampD + ($count - 1) * $gap;
-            $startX = (int) (($rW - $rowW) / 2);
-            $cy     = (int) ($startY + $row * $rowHeight + $stampD / 2);
-
-            for ($col = 0; $col < $count; $col++, $stampN++) {
-                $cx          = (int) ($startX + $col * ($stampD + $gap) + $stampD / 2);
+            for ($col = 0; $col < $perRow; $col++, $stampN++) {
+                $cx          = $startX + $col * ($stampD + $gapX) + (int) ($stampD / 2);
+                $cy          = $startY + $row * ($stampD + $gapY) + (int) ($stampD / 2);
                 $stampNumber = $stampN + 1;
                 $isMilestone = isset($milestoneCounts[$stampNumber]);
                 $isFinal     = ($stampNumber === $total);
