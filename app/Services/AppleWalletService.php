@@ -113,10 +113,13 @@ class AppleWalletService
             $pass->update(['images' => $images]);
         }
 
-        if (! ($program->filled_stamp_image || $program->empty_stamp_image)) {
+        if ($program->filled_stamp_image || $program->empty_stamp_image) {
+            // Sin campo progress: el changeMessage va en next_reward para disparar el push
+            $pass->updateField('next_reward', $this->nextRewardText($card), changeMessage: 'Nueva visita registrada');
+        } else {
             $pass->updateField('progress', $card->stamps_collected . ' / ' . $program->total_stamps, changeMessage: 'Nueva visita registrada');
+            $pass->updateField('next_reward', $this->nextRewardText($card));
         }
-        $pass->updateField('next_reward', $this->nextRewardText($card));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

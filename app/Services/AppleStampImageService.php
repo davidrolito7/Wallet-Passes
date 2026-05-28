@@ -107,7 +107,7 @@ class AppleStampImageService
         // Safe area for Apple Wallet strip.
         // Keeps stamps and milestone badges away from the strip edges.
         $safePadX = (int) ($rW * 0.075);
-        $safePadY = (int) ($rH * 0.085);
+        $safePadY = (int) ($rH * 0.087);
 
         $availW = $rW - ($safePadX * 2);
         $availH = $rH - ($safePadY * 2);
@@ -391,8 +391,18 @@ class AppleStampImageService
             return;
         }
 
+        $srcW = imagesx($bg);
+        $srcH = imagesy($bg);
+
+        // Cover: scale to fill canvas keeping aspect ratio, crop center
+        $scale = max($w / $srcW, $h / $srcH);
+        $cropW = (int) round($w / $scale);
+        $cropH = (int) round($h / $scale);
+        $srcX  = (int) round(($srcW - $cropW) / 2);
+        $srcY  = (int) round(($srcH - $cropH) / 2);
+
         imagealphablending($c, false);
-        imagecopyresampled($c, $bg, 0, 0, 0, 0, $w, $h, imagesx($bg), imagesy($bg));
+        imagecopyresampled($c, $bg, 0, 0, $srcX, $srcY, $w, $h, $cropW, $cropH);
         imagedestroy($bg);
     }
 
