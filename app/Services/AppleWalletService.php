@@ -42,9 +42,15 @@ class AppleWalletService
             ->setIconImage(...$this->iconPaths())
             // Header: nombre del programa / año de membresía
             ->addHeaderField('member_since', 'Desde ' . $card->created_at->year, label: $business->name)
-            // Secondary: nombre y número de tarjeta
+            // Secondary: nombre y contador de visitas (stickers) o número de tarjeta (sin stickers)
             ->addSecondaryField('holder', $card->holder_name, label: 'Miembro')
-            ->addSecondaryField('card_id', 'CARD-' . str_pad($card->id, 6, '0', STR_PAD_LEFT), label: 'No. Tarjeta')
+            ->addSecondaryField(
+                'card_id',
+                $hasStickers
+                    ? 'Vista ' . $card->stamps_collected . '/' . $program->total_stamps
+                    : 'CARD-' . str_pad($card->id, 6, '0', STR_PAD_LEFT),
+                label: $hasStickers ? 'Visitas' : 'No. Tarjeta',
+            )
             // Auxiliary: próximo premio
             ->addAuxiliaryField('next_reward', $this->nextRewardText($card), label: 'Próximo Premio')
             // Reverso de la tarjeta
@@ -102,24 +108,35 @@ class AppleWalletService
             return;
         }
 
-        $program = $card->loyaltyProgram;
+        $program     = $card->loyaltyProgram;
+        $hasStickers = (bool) ($program->filled_stamp_image || $program->empty_stamp_image);
 
-        // Versión stickers: regenerar strip con el nuevo conteo de sellos y
-        // actualizar los paths de imágenes antes de que updateField re-guarde el bundle
-        if ($program->filled_stamp_image || $program->empty_stamp_image) {
+        if ($hasStickers) {
+            // Regenerar strip con el nuevo conteo de sellos
             $paths  = app(AppleStampImageService::class)->regenerateFor($card);
             $images = $pass->images ?? [];
             $images['strip'] = ['x1Path' => $paths['x1'], 'x2Path' => $paths['x2'], 'x3Path' => null];
             $pass->update(['images' => $images]);
+
+            // Actualizar contador visible en campo card_id
+            $pass->updateField('card_id', 'Vista ' . $card->stamps_collected . '/' . $program->total_stamps);
+
+            // Si el pass fue creado sin stickers tendrá campo progress — limpiarlo para no mostrar dato viejo
+            if ($this->passHasField($pass, 'progress')) {
+                $pass->updateField('progress', '');
+            }
+        } else {
+            // Restaurar card_id al número de tarjeta en caso de que antes hubiera stickers
+            $pass->updateField('card_id', 'CARD-' . str_pad($card->id, 6, '0', STR_PAD_LEFT));
+
+            // Actualizar campo progress si existe en el pass
+            if ($this->passHasField($pass, 'progress')) {
+                $pass->updateField('progress', $card->stamps_collected . ' / ' . $program->total_stamps);
+            }
         }
 
-        if ($program->filled_stamp_image || $program->empty_stamp_image) {
-            // Sin campo progress: el changeMessage va en next_reward para disparar el push
-            $pass->updateField('next_reward', $this->nextRewardText($card), changeMessage: 'Nueva visita registrada');
-        } else {
-            $pass->updateField('progress', $card->stamps_collected . ' / ' . $program->total_stamps, changeMessage: 'Nueva visita registrada');
-            $pass->updateField('next_reward', $this->nextRewardText($card));
-        }
+        // Push siempre via next_reward — presente en todos los passes independientemente del modo
+        $pass->updateField('next_reward', $this->nextRewardText($card), changeMessage: 'Nueva visita registrada');
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -137,7 +154,7 @@ class AppleWalletService
             $remaining = $next->stamp_count - $card->stamps_collected;
             return $remaining <= 0
                 ? '¡' . $next->reward_title . ' disponible!'
-                : $next->reward_title . ' (faltan ' . $remaining . ')';
+                : $next->reward_title . ' (en ' . $remaining . ' visitas)';
         }
 
         $remaining = $program->total_stamps - $card->stamps_collected;
@@ -146,7 +163,27 @@ class AppleWalletService
             return '¡' . $program->reward_title . ' disponible!';
         }
 
-        return $program->reward_title . ' (faltan ' . $remaining . ')';
+        return $program->reward_title . ' (en ' . $remaining . ' visitas)';
+    }
+
+    private function passHasField(MobilePass $pass, string $key): bool
+    {
+        $content  = $pass->content;
+        $passType = array_key_first($content);
+
+        if (! $passType) {
+            return false;
+        }
+
+        foreach (['primaryFields', 'secondaryFields', 'auxiliaryFields', 'headerFields', 'backFields'] as $group) {
+            foreach ($content[$passType][$group] ?? [] as $field) {
+                if (($field['key'] ?? null) === $key) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
