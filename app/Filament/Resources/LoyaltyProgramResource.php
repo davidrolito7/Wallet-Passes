@@ -160,23 +160,50 @@ class LoyaltyProgramResource extends Resource
             // IMÁGENES PARA WALLET
             // ─────────────────────────────────────────────────────────
             Section::make('Imágenes para Wallet')
-                ->description('Estas imágenes se muestran en Apple Wallet y Google Wallet.')
+                ->description('Sube los 3 stickers para activar la versión visual (3 filas × 5 sellos). Sin stickers se muestra el contador de texto.')
                 ->icon('heroicon-o-photo')
                 ->collapsible()
                 ->schema([
 
                     FileUpload::make('pass_background_image')
-                        ->label('Imagen de Fondo')
-                        ->helperText('PNG · Recomendado: 1032×300 px · Se usa como fondo en Apple Wallet (strip) y Google Wallet (hero)')
+                        ->label('Fondo del Wallet')
+                        ->helperText('PNG · Recomendado 1032×300 px · Fondo de Apple Wallet (strip) y Google Wallet (hero) cuando no hay stickers')
                         ->image()
                         ->disk('public')
                         ->directory('programs/backgrounds')
                         ->acceptedFileTypes(['image/png', 'image/jpeg', 'image/webp'])
-                        ->imagePreviewHeight('120')
+                        ->imagePreviewHeight('100')
                         ->columnSpanFull(),
 
+                    FileUpload::make('filled_stamp_image')
+                        ->label('Sticker — Estampa Completa')
+                        ->helperText('PNG transparente · Aparece cuando la visita ya está registrada · Recomendado 200×200 px')
+                        ->image()
+                        ->disk('public')
+                        ->directory('programs/stamps')
+                        ->acceptedFileTypes(['image/png', 'image/webp'])
+                        ->imagePreviewHeight('80'),
+
+                    FileUpload::make('empty_stamp_image')
+                        ->label('Sticker — Estampa Vacía')
+                        ->helperText('PNG transparente · Aparece en los sellos pendientes · Recomendado 200×200 px')
+                        ->image()
+                        ->disk('public')
+                        ->directory('programs/stamps')
+                        ->acceptedFileTypes(['image/png', 'image/webp'])
+                        ->imagePreviewHeight('80'),
+
+                    FileUpload::make('reward_badge_image')
+                        ->label('Sticker — Premio / Badge')
+                        ->helperText('PNG transparente · Se superpone en milestones y sello final · Recomendado 100×100 px')
+                        ->image()
+                        ->disk('public')
+                        ->directory('programs/stamps')
+                        ->acceptedFileTypes(['image/png', 'image/webp'])
+                        ->imagePreviewHeight('80'),
+
                 ])
-                ->columns(1),
+                ->columns(2),
 
             // ─────────────────────────────────────────────────────────
             // GOOGLE WALLET

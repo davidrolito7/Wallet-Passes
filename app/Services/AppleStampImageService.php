@@ -19,8 +19,8 @@ class AppleStampImageService
 {
     private const W = 750;
     private const H = 246;
-    private const SCALE = 2;      // super-sample for anti-aliasing
-    private const MAX_PER_ROW = 10;
+    private const SCALE = 2;  // super-sample for anti-aliasing
+    private const ROWS = 3;   // fixed 3-row layout
 
     /** @var array<string, \GdImage|null> */
     private array $assetCache = [];
@@ -96,18 +96,22 @@ class AppleStampImageService
         // Background
         $this->drawBackground($canvas, $rW, $rH, $style, $bgR, $bgG, $bgB);
 
-        // Stamp layout
-        $rows   = (int) ceil($total / self::MAX_PER_ROW);
+        // Fixed 3-row layout — perRow = ceil(total/3), e.g. 15 stamps → 5×5×5
+        $rows   = self::ROWS;
         $perRow = (int) ceil($total / $rows);
 
+        // gap grows with canvas size, spacing is the user-configurable knob
         $gapBase = max(8 * self::SCALE, (int) ($rW * $spacing / 1000));
-        $stampD  = (int) min(
-            floor(($rW * 0.88 - ($perRow - 1) * $gapBase) / $perRow),
-            floor($rH * 0.52)
-        );
-        $stampD  = (int) ($stampD * $scale);
-        $gap     = max(6 * self::SCALE, $gapBase);
 
+        // Limit stamp diameter so 3 rows fit in 72 % of height + 5 stamps fit in 88 % of width
+        $stampD = (int) min(
+            floor(($rW * 0.88 - ($perRow - 1) * $gapBase) / $perRow),
+            floor(($rH * 0.72 - ($rows - 1) * $gapBase) / $rows),
+        );
+        $stampD = (int) ($stampD * $scale);
+        $gap    = max(6 * self::SCALE, $gapBase);
+
+        // Center the grid vertically in the full strip (no progress-strip overlay)
         $rowHeight  = $stampD + $gap;
         $totalRowsH = $rows * $rowHeight - $gap;
         $startY     = (int) (($rH - $totalRowsH) / 2);

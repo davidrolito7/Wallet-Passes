@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\LoyaltyCard;
 use App\Models\LoyaltyProgram;
+use App\Services\StampImageService;
 use Spatie\LaravelMobilePass\Builders\Google\LoyaltyPassBuilder;
 use Spatie\LaravelMobilePass\Builders\Google\LoyaltyPassClass;
 use Spatie\LaravelMobilePass\Enums\BarcodeType;
@@ -70,8 +71,14 @@ class GoogleWalletService
     {
         $program = $card->loyaltyProgram;
 
-        // Hero image: imagen de fondo subida en Filament (misma que Apple Wallet strip)
-        $heroUrl = $program->backgroundImageUrl();
+        // Versión con stickers → hero image generada dinámicamente con cuadrícula 3×N
+        // Versión de texto    → usa la imagen de fondo estática (o ninguna hero)
+        if ($program->filled_stamp_image || $program->empty_stamp_image) {
+            $heroUrl = app(StampImageService::class)->urlFor($card);
+        } else {
+            $heroUrl = $program->backgroundImageUrl();
+        }
+
         if ($heroUrl) {
             $payload['heroImage'] = [
                 'sourceUri'          => ['uri' => $heroUrl],
@@ -81,7 +88,6 @@ class GoogleWalletService
             ];
         }
 
-        // Text modules: info clave de la tarjeta
         $payload['textModulesData'] = $this->textModules($card);
 
         return $payload;

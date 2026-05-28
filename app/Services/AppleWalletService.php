@@ -7,6 +7,7 @@ use App\Models\LoyaltyCard;
 use Illuminate\Support\Facades\Storage;
 use Spatie\LaravelMobilePass\Enums\BarcodeType;
 use Spatie\LaravelMobilePass\Models\MobilePass;
+use App\Services\AppleStampImageService;
 
 class AppleWalletService
 {
@@ -52,16 +53,22 @@ class AppleWalletService
             ->addBackField('reward', $program->reward_title, label: 'Premio Final')
             ->setBarcode(BarcodeType::Qr, $barcodeValue);
 
-        // Logo del negocio (descargado localmente desde la URL/storage del negocio)
+        // Logo del negocio
         $logoPath = $this->fetchLogoPath($business->logoPublicUrl());
         if ($logoPath) {
             $builder->setLogoImage($logoPath);
         }
 
-        // Imagen de fondo del programa (sube el usuario en Filament)
-        $bgPath = $program->backgroundImagePath();
-        if ($bgPath && file_exists($bgPath)) {
-            $builder->setStripImage($bgPath);
+        // Versión con stickers: genera strip dinámico con cuadrícula de sellos 3×N
+        // Versión de texto: usa la imagen de fondo estática (fallback "1/10")
+        if ($program->filled_stamp_image || $program->empty_stamp_image) {
+            $paths = app(AppleStampImageService::class)->pathsFor($card);
+            $builder->setStripImage($paths['x1'], $paths['x2']);
+        } else {
+            $bgPath = $program->backgroundImagePath();
+            if ($bgPath && file_exists($bgPath)) {
+                $builder->setStripImage($bgPath);
+            }
         }
 
         $pass = $builder->save();
@@ -90,7 +97,18 @@ class AppleWalletService
             return;
         }
 
-        $pass->updateField('progress', $card->stamps_collected . ' / ' . $card->loyaltyProgram->total_stamps, changeMessage: 'Nueva visita registrada');
+        $program = $card->loyaltyProgram;
+
+        // Versión stickers: regenerar strip con el nuevo conteo de sellos y
+        // actualizar los paths de imágenes antes de que updateField re-guarde el bundle
+        if ($program->filled_stamp_image || $program->empty_stamp_image) {
+            $paths  = app(AppleStampImageService::class)->regenerateFor($card);
+            $images = $pass->images ?? [];
+            $images['strip'] = ['x1Path' => $paths['x1'], 'x2Path' => $paths['x2'], 'x3Path' => null];
+            $pass->update(['images' => $images]);
+        }
+
+        $pass->updateField('progress', $card->stamps_collected . ' / ' . $program->total_stamps, changeMessage: 'Nueva visita registrada');
         $pass->updateField('next_reward', $this->nextRewardText($card));
     }
 
