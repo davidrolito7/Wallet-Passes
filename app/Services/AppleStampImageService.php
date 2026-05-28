@@ -22,6 +22,7 @@ class AppleStampImageService
     private const SCALE = 2;  // super-sample for anti-aliasing
     private const ROWS = 3;   // fixed 3-row layout
     private const COLS = 5;   // fixed 5-column layout
+    private const LAYOUT_VERSION = 'apple_layout_v3';
 
     /** @var array<string, \GdImage|null> */
     private array $assetCache = [];
@@ -37,9 +38,10 @@ class AppleStampImageService
         $x2 = $this->storagePath($card, '2x');
         $x1 = $this->storagePath($card, '1x');
 
-        if (! file_exists($x2)) {
+        if (! file_exists($x2) || ! file_exists($x1)) {
             $this->generate($card, $x2, self::W, self::H);
             $this->generate($card, $x1, self::W / 2, self::H / 2);
+            $this->cleanupOldStrips($card, [$x1, $x2]);
         }
 
         return ['x1' => $x1, 'x2' => $x2];
@@ -52,18 +54,14 @@ class AppleStampImageService
 
         $this->generate($card, $x2, self::W, self::H);
         $this->generate($card, $x1, self::W / 2, self::H / 2);
+        $this->cleanupOldStrips($card, [$x1, $x2]);
 
         return ['x1' => $x1, 'x2' => $x2];
     }
 
     public function clearFor(LoyaltyCard $card): void
     {
-        $dir     = $this->storageDir();
-        $pattern = "{$dir}/apple_strip_{$card->loyalty_program_id}_*.png";
-
-        foreach (glob($pattern) ?: [] as $file) {
-            @unlink($file);
-        }
+        $this->cleanupOldStrips($card, []);
     }
 
     // ── Core renderer ─────────────────────────────────────────────────────────
@@ -511,6 +509,7 @@ class AppleStampImageService
         $business = $program->business;
 
         $hash = substr(md5(implode('|', [
+            self::LAYOUT_VERSION,
             $business->primary_color,
             $business->secondary_color,
             $program->stamp_icon ?? '',
@@ -521,9 +520,24 @@ class AppleStampImageService
             $program->stamp_scale ?? '1.00',
             $program->stamp_spacing ?? '12',
             $program->pass_background_image ?? '',
+            $program->total_stamps,
+            $card->stamps_collected,
         ])), 0, 8);
 
         return "apple_strip_{$program->id}_{$card->stamps_collected}of{$program->total_stamps}_{$hash}_{$scale}.png";
+    }
+
+    private function cleanupOldStrips(LoyaltyCard $card, array $keep): void
+    {
+        $dir     = $this->storageDir();
+        $pattern = "{$dir}/apple_strip_{$card->loyaltyProgram->id}_*.png";
+        $keep    = array_map('realpath', $keep);
+
+        foreach (glob($pattern) ?: [] as $file) {
+            if (! in_array(realpath($file), $keep, true)) {
+                @unlink($file);
+            }
+        }
     }
 
     private function storageDir(): string
