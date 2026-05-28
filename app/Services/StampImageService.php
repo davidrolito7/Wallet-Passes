@@ -25,6 +25,7 @@ class StampImageService
     private const SCALE = 3;
 
     private const ROWS = 3; // fixed 3-row layout
+    private const COLS = 5; // fixed 5-column layout
 
     /** @var array<string, \GdImage|null> */
     private array $assetCache = [];
@@ -100,22 +101,17 @@ class StampImageService
         $this->drawBackground($canvas, $rW, $rH, $style, $bgR, $bgG, $bgB);
 
         // ── Stamp layout ─────────────────────────────────────────────────────
-        // Fixed 3-row layout — perRow = ceil(total/3), e.g. 15 stamps → 5×5×5
         $rows   = self::ROWS;
-        $perRow = (int) ceil($total / $rows);
+        $perRow = self::COLS;
+        $gap    = (int) max(8 * self::SCALE, (int) ($rW * 0.018));
 
-        $gapBase = (int) max(10 * self::SCALE, (int) ($rW * $spacing / 1000));
+        $availH = (int) ($rH * 0.80);
 
-        // Stamps fill 72 % of height (remaining 28 % = progress strip + margins)
-        $stampD = (int) min(
-            floor(($rW * 0.88 - ($perRow - 1) * $gapBase) / $perRow),
-            floor(($rH * 0.72 - ($rows - 1) * $gapBase) / $rows),
+        $stampD     = (int) min(
+            floor(($rW * 0.92 - ($perRow - 1) * $gap) / $perRow),
+            floor(($availH - ($rows - 1) * $gap) / $rows),
         );
-        $stampD = (int) ($stampD * $scale);
-        $gap    = (int) max(8 * self::SCALE, $gapBase);
-
-        // Center grid in the top 80 % — bottom 20 % is the progress strip
-        $availH     = (int) ($rH * 0.80);
+        $stampD     = (int) ($stampD * $scale);
         $rowHeight  = $stampD + $gap;
         $totalRowsH = $rows * $rowHeight - $gap;
         $startY     = (int) (($availH - $totalRowsH) / 2);
