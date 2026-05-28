@@ -108,7 +108,7 @@ class AppleStampImageService
         $availH = $rH - ($safePadY * 2);
 
         // Slightly more vertical breathing room between rows.
-        $gapY = (int) max(5 * self::SCALE, (int) ($rH * 0.038));
+        $gapY = (int) max(6 * self::SCALE, (int) ($rH * 0.043));
 
         // Compute stamp diameter from available height first.
         $maxByHeight = (int) floor(($availH - (($rows - 1) * $gapY)) / $rows);
