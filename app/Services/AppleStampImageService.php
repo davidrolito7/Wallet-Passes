@@ -97,17 +97,19 @@ class AppleStampImageService
         // Background
         $this->drawBackground($canvas, $rW, $rH, $style, $bgR, $bgG, $bgB);
 
-        $rows   = self::ROWS;
-        $perRow = self::COLS;
-        $gap    = (int) max(8 * self::SCALE, (int) ($rW * 0.018));
+        $rows   = self::ROWS;   // 3 filas
+        $perRow = self::COLS;   // 5 columnas → 15 sellos
 
-        $availH = $rH;
+        $availH = (int) ($rH * 0.86);
+        $availW = (int) ($rW * 0.86);
 
-        $stampD     = (int) min(
-            floor(($rW * 0.92 - ($perRow - 1) * $gap) / $perRow),
-            floor(($availH - ($rows - 1) * $gap) / $rows),
-        );
-        $stampD     = (int) ($stampD * $scale);
+        $gap = (int) max(10 * self::SCALE, (int) ($rW * 0.032));
+
+        $maxByWidth  = (int) floor(($availW - ($perRow - 1) * $gap) / $perRow);
+        $maxByHeight = (int) floor(($availH - ($rows   - 1) * $gap) / $rows);
+        $stampD      = (int) (min($maxByWidth, $maxByHeight) * 0.72);
+        $stampD      = (int) ($stampD * $scale);
+
         $rowHeight  = $stampD + $gap;
         $totalRowsH = $rows * $rowHeight - $gap;
         $startY     = (int) (($availH - $totalRowsH) / 2);
