@@ -107,13 +107,13 @@ class AppleStampImageService
         // Safe area for Apple Wallet strip.
         // Keeps stamps and milestone badges away from the strip edges.
         $safePadX = (int) ($rW * 0.075);
-        $safePadY = (int) ($rH * 0.087);
+        $safePadY = (int) ($rH * 0.082);
 
         $availW = $rW - ($safePadX * 2);
         $availH = $rH - ($safePadY * 2);
 
         // Slightly more vertical breathing room between rows.
-        $gapY = (int) max(6 * self::SCALE, (int) ($rH * 0.044));
+        $gapY = (int) max(6 * self::SCALE, (int) ($rH * 0.048));
 
         // Compute stamp diameter from available height first.
         $maxByHeight = (int) floor(($availH - (($rows - 1) * $gapY)) / $rows);
