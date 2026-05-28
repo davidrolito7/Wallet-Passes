@@ -29,6 +29,8 @@ class AppleWalletService
 
         $barcodeValue = 'loyalty:' . $card->id . ':' . md5($card->id . $card->created_at);
 
+        $hasStickers = (bool) ($program->filled_stamp_image || $program->empty_stamp_image);
+
         /** @var LoyaltyStoreCardBuilder $builder */
         $builder = LoyaltyStoreCardBuilder::make()
             ->setOrganizationName($business->name)
@@ -40,8 +42,6 @@ class AppleWalletService
             ->setIconImage(...$this->iconPaths())
             // Header: nombre del programa / año de membresía
             ->addHeaderField('member_since', 'Desde ' . $card->created_at->year, label: $business->name)
-            // Primary: contador de visitas (campo prominente)
-            ->addField('progress', $card->stamps_collected . ' / ' . $program->total_stamps, label: 'Visitas')
             // Secondary: nombre y número de tarjeta
             ->addSecondaryField('holder', $card->holder_name, label: 'Miembro')
             ->addSecondaryField('card_id', 'CARD-' . str_pad($card->id, 6, '0', STR_PAD_LEFT), label: 'No. Tarjeta')
@@ -52,6 +52,11 @@ class AppleWalletService
             ->addBackField('total_stamps', $program->total_stamps . ' visitas para completar', label: 'Meta')
             ->addBackField('reward', $program->reward_title, label: 'Premio Final')
             ->setBarcode(BarcodeType::Qr, $barcodeValue);
+
+        // Primary: contador de visitas solo cuando no hay stickers (la imagen ya muestra el conteo visualmente)
+        if (! $hasStickers) {
+            $builder->addField('progress', $card->stamps_collected . ' / ' . $program->total_stamps, label: 'Visitas');
+        }
 
         // Logo del negocio
         $logoPath = $this->fetchLogoPath($business->logoPublicUrl());
@@ -108,7 +113,9 @@ class AppleWalletService
             $pass->update(['images' => $images]);
         }
 
-        $pass->updateField('progress', $card->stamps_collected . ' / ' . $program->total_stamps, changeMessage: 'Nueva visita registrada');
+        if (! ($program->filled_stamp_image || $program->empty_stamp_image)) {
+            $pass->updateField('progress', $card->stamps_collected . ' / ' . $program->total_stamps, changeMessage: 'Nueva visita registrada');
+        }
         $pass->updateField('next_reward', $this->nextRewardText($card));
     }
 

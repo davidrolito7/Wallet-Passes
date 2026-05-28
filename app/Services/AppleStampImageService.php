@@ -93,8 +93,13 @@ class AppleStampImageService
         imagesavealpha($canvas, true);
         imageantialias($canvas, true);
 
-        // Background
-        $this->drawBackground($canvas, $rW, $rH, $style, $bgR, $bgG, $bgB);
+        // Background: use wallet background image if configured, else style-based fallback
+        $bgImagePath = $program->backgroundImagePath();
+        if ($bgImagePath && file_exists($bgImagePath)) {
+            $this->drawBackgroundImage($canvas, $rW, $rH, $bgImagePath);
+        } else {
+            $this->drawBackground($canvas, $rW, $rH, $style, $bgR, $bgG, $bgB);
+        }
 
         $rows   = self::ROWS;   // 3 filas fijas
         $perRow = self::COLS;   // 5 columnas fijas → 15 posiciones siempre
@@ -108,7 +113,7 @@ class AppleStampImageService
         $availH = $rH - ($safePadY * 2);
 
         // Slightly more vertical breathing room between rows.
-        $gapY = (int) max(6 * self::SCALE, (int) ($rH * 0.043));
+        $gapY = (int) max(6 * self::SCALE, (int) ($rH * 0.044));
 
         // Compute stamp diameter from available height first.
         $maxByHeight = (int) floor(($availH - (($rows - 1) * $gapY)) / $rows);
@@ -371,6 +376,26 @@ class AppleStampImageService
 
     // ── Background ────────────────────────────────────────────────────────────
 
+    private function drawBackgroundImage(\GdImage $c, int $w, int $h, string $path): void
+    {
+        $type = @exif_imagetype($path);
+        $bg   = match ($type) {
+            IMAGETYPE_PNG  => @imagecreatefrompng($path),
+            IMAGETYPE_WEBP => @imagecreatefromwebp($path),
+            IMAGETYPE_GIF  => @imagecreatefromgif($path),
+            IMAGETYPE_JPEG => @imagecreatefromjpeg($path),
+            default        => null,
+        };
+
+        if (! $bg) {
+            return;
+        }
+
+        imagealphablending($c, false);
+        imagecopyresampled($c, $bg, 0, 0, 0, 0, $w, $h, imagesx($bg), imagesy($bg));
+        imagedestroy($bg);
+    }
+
     private function drawBackground(\GdImage $c, int $w, int $h, string $style, int $bgR, int $bgG, int $bgB): void
     {
         match ($style) {
@@ -485,6 +510,7 @@ class AppleStampImageService
             $program->reward_badge_image ?? '',
             $program->stamp_scale ?? '1.00',
             $program->stamp_spacing ?? '12',
+            $program->pass_background_image ?? '',
         ])), 0, 8);
 
         return "apple_strip_{$program->id}_{$card->stamps_collected}of{$program->total_stamps}_{$hash}_{$scale}.png";
