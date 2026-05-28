@@ -82,10 +82,9 @@ class StampImageService
         $program->load('milestones');
         $milestoneCounts = array_flip($program->milestoneCounts());
 
-        $style   = $program->stamp_style ?? 'minimal';
-        $scale   = max(0.5, min(1.5, (float) ($program->stamp_scale ?? 1.0)));
-        $spacing = max(5, min(40, (int) ($program->stamp_spacing ?? 15)));
-        $font    = $program->fontPath();
+        $style = $program->stamp_style ?? 'minimal';
+        $scale = max(0.5, min(1.5, (float) ($program->stamp_scale ?? 1.0)));
+        $font  = $program->fontPath();
 
         [$bgR, $bgG, $bgB] = $this->hexToRgb($business->primary_color ?? '#1a1a2e');
         [$fgR, $fgG, $fgB] = $this->hexToRgb($business->secondary_color ?? '#ffffff');
@@ -104,19 +103,24 @@ class StampImageService
         $rows   = self::ROWS;   // 3 filas
         $perRow = self::COLS;   // 5 columnas → 15 sellos
 
-        $availH = (int) ($rH * 0.78);
-        $availW = (int) ($rW * 0.86);
+        // Size constraint: narrower/shorter available area forces smaller, more separated stamps
+        $availW = (int) ($rW * 0.82);
+        $availH = (int) ($rH * 0.60);
 
-        $gap = (int) max(10 * self::SCALE, (int) ($rW * 0.032));
+        // Generous gap to prioritise breathing room over stamp size
+        $gap = (int) max(10 * self::SCALE, (int) ($rW * 0.028));
 
         $maxByWidth  = (int) floor(($availW - ($perRow - 1) * $gap) / $perRow);
         $maxByHeight = (int) floor(($availH - ($rows   - 1) * $gap) / $rows);
-        $stampD      = (int) (min($maxByWidth, $maxByHeight) * 0.72);
-        $stampD      = (int) ($stampD * $scale);
+        // 0.68 keeps stamps clearly smaller than their cell, avoiding a saturated grid
+        $stampD = (int) (min($maxByWidth, $maxByHeight) * 0.68);
+        $stampD = (int) ($stampD * $scale);
 
         $rowHeight  = $stampD + $gap;
         $totalRowsH = $rows * $rowHeight - $gap;
-        $startY     = (int) (($availH - $totalRowsH) / 2);
+        // Centre the grid inside the stamp-safe zone (top 80 %, above the progress strip)
+        $usableH = (int) ($rH * 0.80);
+        $startY  = (int) (($usableH - $totalRowsH) / 2);
 
         $ctx = [
             'style'       => $style,
