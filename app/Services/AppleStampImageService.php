@@ -99,26 +99,59 @@ class AppleStampImageService
         $rows   = self::ROWS;   // 3 filas fijas
         $perRow = self::COLS;   // 5 columnas fijas → 15 posiciones siempre
 
-        // Wide zone so the grid fills the canvas; tall enough for medium-large stamps
-        $availW = (int) ($rW * 0.92);
-        $availH = (int) ($rH * 0.74);
+        // Safe area for Apple Wallet strip.
+        // Keeps stamps and milestone badges away from the strip edges.
+        $safePadX = (int) ($rW * 0.075);
+        $safePadY = (int) ($rH * 0.085);
 
-        // Vertical gap: proportional to height (binding constraint on a wide canvas)
-        $gapY = (int) max(4 * self::SCALE, (int) ($rH * 0.030));
+        $availW = $rW - ($safePadX * 2);
+        $availH = $rH - ($safePadY * 2);
 
-        // Stamp diameter from height — height is always the bottleneck (3:1 canvas)
-        $maxByHeight = (int) floor(($availH - ($rows - 1) * $gapY) / $rows);
-        $stampD      = (int) ($maxByHeight * 0.84);
-        $stampD      = (int) ($stampD * $scale);
+        // Slightly more vertical breathing room between rows.
+        $gapY = (int) max(5 * self::SCALE, (int) ($rH * 0.038));
 
-        // Horizontal gap: calculated to spread 5 stamps evenly across the available width
-        $gapX = max($gapY, (int) floor(($availW - $perRow * $stampD) / ($perRow - 1)));
+        // Compute stamp diameter from available height first.
+        $maxByHeight = (int) floor(($availH - (($rows - 1) * $gapY)) / $rows);
 
-        // Fixed 5×3 grid dimensions (independent of $total — always 15 positions)
-        $totalGridW = $perRow * $stampD + ($perRow - 1) * $gapX;
-        $totalGridH = $rows   * $stampD + ($rows   - 1) * $gapY;
+        // Conservative size so stamps do not overflow vertically.
+        $stampD = (int) ($maxByHeight * 0.78);
+        $stampD = (int) ($stampD * $scale);
 
-        // Centre grid in the full canvas (Apple Wallet has no progress strip)
+        // Prevent user scale from making stamps exceed the safe height.
+        $maxStampD = (int) floor(($availH - (($rows - 1) * $gapY)) / $rows);
+        $stampD    = min($stampD, $maxStampD);
+
+        // Calculate horizontal gap, then tighten it slightly.
+        $rawGapX            = (int) floor(($availW - ($perRow * $stampD)) / ($perRow - 1));
+        $horizontalTightness = 0.82;
+        $gapX               = (int) floor($rawGapX * $horizontalTightness);
+
+        // Minimum horizontal gap, but do not force it to be as large as vertical gap.
+        $gapX = max(3 * self::SCALE, $gapX);
+
+        // Fixed 5×3 grid dimensions.
+        $totalGridW = ($perRow * $stampD) + (($perRow - 1) * $gapX);
+        $totalGridH = ($rows   * $stampD) + (($rows   - 1) * $gapY);
+
+        // If the grid still exceeds the safe area, shrink stamps proportionally.
+        if ($totalGridW > $availW || $totalGridH > $availH) {
+            $scaleX   = $availW / $totalGridW;
+            $scaleY   = $availH / $totalGridH;
+            $fitScale = min($scaleX, $scaleY);
+
+            $stampD = (int) floor($stampD * $fitScale);
+
+            $rawGapX = (int) floor(($availW - ($perRow * $stampD)) / ($perRow - 1));
+            $gapX    = max(3 * self::SCALE, (int) floor($rawGapX * $horizontalTightness));
+
+            $maxGapY = (int) floor(($availH - ($rows * $stampD)) / ($rows - 1));
+            $gapY    = min($gapY, $maxGapY);
+
+            $totalGridW = ($perRow * $stampD) + (($perRow - 1) * $gapX);
+            $totalGridH = ($rows   * $stampD) + (($rows   - 1) * $gapY);
+        }
+
+        // Center grid inside the full canvas.
         $startX = (int) (($rW - $totalGridW) / 2);
         $startY = (int) (($rH - $totalGridH) / 2);
 
