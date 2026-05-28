@@ -41,16 +41,9 @@ class AppleWalletService
             ->setLabelColor($business->label_color)
             ->setIconImage(...$this->iconPaths())
             // Header: nombre del programa / año de membresía
-            ->addHeaderField('member_since', 'Desde ' . $card->created_at->year, label: $business->name)
-            // Secondary: nombre y contador de visitas (stickers) o número de tarjeta (sin stickers)
+            ->addHeaderField('member_since', 'Desde ' . $card->created_at->format('m/y'), label: $business->name)
+            // Secondary: miembro + contador de visitas solo cuando hay stickers
             ->addSecondaryField('holder', $card->holder_name, label: 'Miembro')
-            ->addSecondaryField(
-                'card_id',
-                $hasStickers
-                    ? 'Vista ' . $card->stamps_collected . '/' . $program->total_stamps
-                    : 'CARD-' . str_pad($card->id, 6, '0', STR_PAD_LEFT),
-                label: $hasStickers ? 'Visitas' : 'No. Tarjeta',
-            )
             // Auxiliary: próximo premio
             ->addAuxiliaryField('next_reward', $this->nextRewardText($card), label: 'Próximo Premio')
             // Reverso de la tarjeta
@@ -59,8 +52,10 @@ class AppleWalletService
             ->addBackField('reward', $program->reward_title, label: 'Premio Final')
             ->setBarcode(BarcodeType::Qr, $barcodeValue);
 
-        // Primary: contador de visitas solo cuando no hay stickers (la imagen ya muestra el conteo visualmente)
-        if (! $hasStickers) {
+        if ($hasStickers) {
+            $builder->addSecondaryField('card_id', 'Vista ' . $card->stamps_collected . '/' . $program->total_stamps, label: 'Visitas');
+        } else {
+            // Sin stickers: contador prominente como campo primario
             $builder->addField('progress', $card->stamps_collected . ' / ' . $program->total_stamps, label: 'Visitas');
         }
 
@@ -126,9 +121,6 @@ class AppleWalletService
                 $pass->updateField('progress', '');
             }
         } else {
-            // Restaurar card_id al número de tarjeta en caso de que antes hubiera stickers
-            $pass->updateField('card_id', 'CARD-' . str_pad($card->id, 6, '0', STR_PAD_LEFT));
-
             // Actualizar campo progress si existe en el pass
             if ($this->passHasField($pass, 'progress')) {
                 $pass->updateField('progress', $card->stamps_collected . ' / ' . $program->total_stamps);
@@ -168,17 +160,17 @@ class AppleWalletService
 
     private function passHasField(MobilePass $pass, string $key): bool
     {
-        $content  = $pass->content;
-        $passType = array_key_first($content);
+        $content = $pass->content;
 
-        if (! $passType) {
-            return false;
-        }
-
-        foreach (['primaryFields', 'secondaryFields', 'auxiliaryFields', 'headerFields', 'backFields'] as $group) {
-            foreach ($content[$passType][$group] ?? [] as $field) {
-                if (($field['key'] ?? null) === $key) {
-                    return true;
+        foreach (['storeCard', 'boardingPass', 'coupon', 'eventTicket', 'generic'] as $passType) {
+            if (! isset($content[$passType])) {
+                continue;
+            }
+            foreach (['primaryFields', 'secondaryFields', 'auxiliaryFields', 'headerFields', 'backFields'] as $group) {
+                foreach ($content[$passType][$group] ?? [] as $field) {
+                    if (($field['key'] ?? null) === $key) {
+                        return true;
+                    }
                 }
             }
         }
