@@ -14,7 +14,8 @@ class LoyaltyRegistrationController extends Controller
     public function show(string $slug, int $program)
     {
         $business = Business::where('slug', $slug)->where('is_active', true)->firstOrFail();
-        $program  = LoyaltyProgram::where('id', $program)
+        $program  = LoyaltyProgram::with(['milestones' => fn ($q) => $q->orderBy('stamp_count')])
+            ->where('id', $program)
             ->where('business_id', $business->id)
             ->where('is_active', true)
             ->firstOrFail();
@@ -55,6 +56,9 @@ class LoyaltyRegistrationController extends Controller
             return redirect()->route('loyalty.google', $card);
         }
 
-        return redirect()->route('loyalty.landing', $card);
+        // Sin dispositivo detectado o sin pass disponible: redirigir de vuelta al formulario con mensaje de éxito
+        return redirect()
+            ->route('public.loyalty.register', ['slug' => $slug, 'program' => $program->id])
+            ->with('card_added', true);
     }
 }
