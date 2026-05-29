@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 
-class Business extends Model
+class Business extends Authenticatable
 {
     use SoftDeletes;
 
@@ -17,22 +17,25 @@ class Business extends Model
         'primary_color',
         'secondary_color',
         'label_color',
-        'contact_email',
+        'login_email',
+        'password',
         'contact_phone',
         'website',
         'is_active',
+    ];
+
+    protected $hidden = [
+        'password',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'password'  => 'hashed',
         ];
     }
 
-    /**
-     * URL pública del logo, funciona tanto para rutas de storage como para URLs externas.
-     */
     public function logoPublicUrl(): ?string
     {
         if (! $this->logo_url) {

@@ -39,12 +39,13 @@ class LoyaltyService
         return false;
     }
 
-    public function createCard(LoyaltyProgram $program, string $holderName, ?string $holderEmail = null, ?string $holderIdentifier = null): LoyaltyCard
+    public function createCard(LoyaltyProgram $program, string $firstName, string $lastName = '', ?string $birthDate = null, ?string $holderIdentifier = null): LoyaltyCard
     {
         $card = LoyaltyCard::create([
             'loyalty_program_id' => $program->id,
-            'holder_name'        => $holderName,
-            'holder_email'       => $holderEmail,
+            'first_name'         => $firstName,
+            'last_name'          => $lastName,
+            'birth_date'         => $birthDate,
             'holder_identifier'  => $holderIdentifier,
             'stamps_collected'   => 0,
         ]);

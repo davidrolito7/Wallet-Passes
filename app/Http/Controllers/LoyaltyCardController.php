@@ -20,7 +20,6 @@ class LoyaltyCardController extends Controller
     {
         $identifier = $request->get('id') ?? Str::uuid()->toString();
         $name = $request->get('name', 'Cliente');
-        $email = $request->get('email');
 
         $existing = LoyaltyCard::where('loyalty_program_id', $program->id)
             ->where('holder_identifier', $identifier)
@@ -29,8 +28,7 @@ class LoyaltyCardController extends Controller
 
         $card = $existing ?? $this->loyalty->createCard(
             program: $program,
-            holderName: $name,
-            holderEmail: $email,
+            firstName: $name,
             holderIdentifier: $identifier,
         );
 

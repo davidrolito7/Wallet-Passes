@@ -14,8 +14,9 @@ class LoyaltyCard extends Model
 
     protected $fillable = [
         'loyalty_program_id',
-        'holder_name',
-        'holder_email',
+        'first_name',
+        'last_name',
+        'birth_date',
         'holder_identifier',
         'stamps_collected',
         'is_completed',
@@ -32,7 +33,13 @@ class LoyaltyCard extends Model
             'is_completed'     => 'boolean',
             'completed_at'     => 'datetime',
             'last_stamp_at'    => 'datetime',
+            'birth_date'       => 'date',
         ];
+    }
+
+    public function fullName(): string
+    {
+        return trim($this->first_name . ' ' . $this->last_name);
     }
 
     public function loyaltyProgram(): BelongsTo
@@ -114,8 +121,8 @@ class LoyaltyCard extends Model
 
     public function stampVisual(): string
     {
-        $program  = $this->loyaltyProgram;
-        $icon     = $program->stampIconLabel();
+        $program    = $this->loyaltyProgram;
+        $icon       = $program->stampIconLabel();
         $milestones = $program->milestoneCounts();
 
         $parts = [];

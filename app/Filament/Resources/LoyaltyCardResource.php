@@ -14,6 +14,7 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Illuminate\Database\Eloquent\Collection;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -57,15 +58,19 @@ class LoyaltyCardResource extends Resource
             ]),
 
             Section::make('Datos del Titular')->schema([
-                TextInput::make('holder_name')
-                    ->label('Nombre completo')
+                TextInput::make('first_name')
+                    ->label('Nombre')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(100),
 
-                TextInput::make('holder_email')
-                    ->label('Correo electrónico')
-                    ->email()
-                    ->maxLength(255),
+                TextInput::make('last_name')
+                    ->label('Apellido')
+                    ->required()
+                    ->maxLength(100),
+
+                DatePicker::make('birth_date')
+                    ->label('Fecha de Nacimiento')
+                    ->maxDate(now()->subDay()),
 
                 TextInput::make('holder_identifier')
                     ->label('Identificador (QR / dispositivo)')
@@ -92,14 +97,20 @@ class LoyaltyCardResource extends Resource
                     ->badge()
                     ->color('primary'),
 
-                TextColumn::make('holder_name')
+                TextColumn::make('full_name')
                     ->label('Titular')
-                    ->searchable()
-                    ->sortable(),
+                    ->state(fn (LoyaltyCard $record) => $record->fullName())
+                    ->searchable(query: function ($query, string $search) {
+                        $query->where(function ($q) use ($search) {
+                            $q->where('first_name', 'like', "%{$search}%")
+                              ->orWhere('last_name', 'like', "%{$search}%");
+                        });
+                    })
+                    ->sortable(query: fn ($query, $direction) => $query->orderBy('first_name', $direction)),
 
-                TextColumn::make('holder_email')
-                    ->label('Email')
-                    ->searchable()
+                TextColumn::make('birth_date')
+                    ->label('Nacimiento')
+                    ->date('d/m/Y')
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('stamps_collected')
@@ -164,7 +175,7 @@ class LoyaltyCardResource extends Resource
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('Agregar sello')
-                    ->modalDescription(fn (LoyaltyCard $record) => $record->holder_name . ' · ' . $record->progressText())
+                    ->modalDescription(fn (LoyaltyCard $record) => $record->fullName() . ' · ' . $record->progressText())
                     ->action(function (LoyaltyCard $record) {
                         $result = app(LoyaltyService::class)->addStamp($record, 1, null, auth()->guard()->user()?->name);
 
@@ -184,7 +195,7 @@ class LoyaltyCardResource extends Resource
                     ->color('warning')
                     ->requiresConfirmation()
                     ->modalHeading('Canjear premio')
-                    ->modalDescription(fn (LoyaltyCard $record) => '"' . $record->loyaltyProgram->reward_title . '" para ' . $record->holder_name)
+                    ->modalDescription(fn (LoyaltyCard $record) => '"' . $record->loyaltyProgram->reward_title . '" para ' . $record->fullName())
                     ->action(function (LoyaltyCard $record) {
                         app(LoyaltyService::class)->redeemReward($record, auth()->guard()->user()?->name);
                         Notification::make()->title('Premio canjeado')->success()->send();

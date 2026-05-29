@@ -1,20 +1,13 @@
 <?php
 
 use App\Http\Controllers\LoyaltyCardController;
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Public\LoyaltyRegistrationController;
 use App\Models\LoyaltyProgram;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
 });
-
-// ──────────────────────────────────────────────────────────────
-// Apple & Google Wallet webservice routes (Spatie package)
-// Apple Wallet usa estas rutas para registrar dispositivos y
-// servir el .pkpass actualizado cuando hay cambios.
-// ──────────────────────────────────────────────────────────────
-Route::mobilePass();
 
 // ──────────────────────────────────────────────────────────────
 // Loyalty card public routes (no auth required — scannable QR)
@@ -42,7 +35,7 @@ Route::get('/google/test-loyalty-pass', function () {
     }
 
     $service = app(\App\Services\LoyaltyService::class);
-    $card = $service->createCard($program, 'Test User', 'test@example.com');
+    $card = $service->createCard($program, 'Test', 'User');
 
     $pass = $card->googlePass();
 
@@ -58,16 +51,12 @@ Route::get('/google/test-loyalty-pass', function () {
 });
 
 // ──────────────────────────────────────────────────────────────
-// Auth routes (Breeze)
+// Formulario público para registro de clientes al programa
 // ──────────────────────────────────────────────────────────────
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
-
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+Route::prefix('loyalty')->name('public.loyalty.')->group(function () {
+    Route::get('/{slug}/{program}/register', [LoyaltyRegistrationController::class, 'show'])->name('register');
+    Route::post('/{slug}/{program}/register', [LoyaltyRegistrationController::class, 'store'])->name('register.submit');
 });
 
+require __DIR__ . '/business.php';
 require __DIR__ . '/auth.php';

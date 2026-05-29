@@ -170,7 +170,7 @@
         </div>
 
         <p class="progress-text">{{ $card->progressText() }} sellos</p>
-        <p class="holder-name">{{ $card->holder_name }}</p>
+        <p class="holder-name">{{ $card->fullName() }}</p>
 
         <div class="wallet-buttons">
             @if($card->google_pass_id)

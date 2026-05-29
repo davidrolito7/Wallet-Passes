@@ -19,6 +19,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class BusinessResource extends Resource
@@ -81,21 +82,27 @@ class BusinessResource extends Resource
                     ->default('#cccccc'),
             ])->columns(3),
 
-            Section::make('Contacto')->schema([
-                TextInput::make('contact_email')
-                    ->label('Email')
+            Section::make('Acceso y Contacto')->schema([
+                TextInput::make('login_email')
+                    ->label('Correo electrónico')
                     ->email()
-                    ->maxLength(255),
+                    ->required()
+                    ->unique(ignoreRecord: true)
+                    ->maxLength(255)
+                    ->helperText('El negocio usará este correo para entrar al portal.'),
+
+                TextInput::make('password')
+                    ->label('Contraseña')
+                    ->default(fn () => Str::password(12))
+                    ->dehydrateStateUsing(fn ($state) => filled($state) ? Hash::make($state) : null)
+                    ->dehydrated(fn ($state) => filled($state))
+                    ->required(fn (string $operation) => $operation === 'create')
+                    ->helperText('Auto-generada. Cópiala antes de guardar. Deja vacía al editar para no cambiarla.'),
 
                 TextInput::make('contact_phone')
                     ->label('Teléfono')
                     ->tel()
                     ->maxLength(50),
-
-                TextInput::make('website')
-                    ->label('Sitio Web')
-                    ->url()
-                    ->maxLength(2048),
             ])->columns(3),
         ]);
     }
@@ -108,6 +115,11 @@ class BusinessResource extends Resource
                     ->label('Nombre')
                     ->searchable()
                     ->sortable(),
+
+                TextColumn::make('login_email')
+                    ->label('Email')
+                    ->searchable()
+                    ->toggleable(),
 
                 ColorColumn::make('primary_color')
                     ->label('Color'),
