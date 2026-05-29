@@ -18,11 +18,11 @@
 </head>
 <body class="min-h-screen flex flex-col" style="background-color: {{ $business->primary_color ?? '#1a1a2e' }}">
 
-<main class="flex-1 flex items-center justify-center p-4 py-10">
+<main class="flex-1 flex items-center justify-center p-4 py-6">
     <div class="w-full max-w-md">
 
         {{-- Header del negocio --}}
-        <div class="text-center mb-8">
+        <div class="text-center mb-6">
             @if($business->logoPublicUrl())
                 <img src="{{ $business->logoPublicUrl() }}" alt="{{ $business->name }}" class="h-16 mx-auto object-contain mb-4">
             @endif
@@ -86,7 +86,7 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                            <input type="text" name="first_name" value="{{ old('first_name') }}" required autofocus
+                            <input type="text" name="first_name" value="{{ old('first_name') }}" required
                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500
                                           @error('first_name') border-red-400 @enderror">
                             @error('first_name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
@@ -105,7 +105,7 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento *</label>
                         <input type="date" name="birth_date" value="{{ old('birth_date') }}" required
                                max="{{ now()->subDay()->format('Y-m-d') }}"
-                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500
+                               class="w-full min-w-0 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500
                                       @error('birth_date') border-red-400 @enderror">
                         @error('birth_date') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
