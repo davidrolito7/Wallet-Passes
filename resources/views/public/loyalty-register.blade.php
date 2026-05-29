@@ -36,8 +36,7 @@
 
 <body class="min-h-screen flex flex-col" style="background-color: {{ $business->primary_color ?? '#1a1a2e' }}">
 
-    <main class="flex-1 flex items-start sm:items-center justify-center p-4 pt-8 sm:py-6">
-        <div class="w-full max-w-md">
+<main class="flex-1 flex items-start sm:items-center justify-center p-4 pt-6 pb-3 sm:py-6">        <div class="w-full max-w-md">
 
             {{-- Header del negocio --}}
             <div class="text-center mb-6">
@@ -123,8 +122,8 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento *</label>
                         <input type="date" name="birth_date" value="{{ old('birth_date') }}" required
                             max="{{ now()->subDay()->format('Y-m-d') }}"
-                            class="block w-full max-w-full min-w-0 box-border appearance-none px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500
-              @error('birth_date') border-red-400 @enderror">
+                            class="block w-full max-w-full min-w-0 box-border h-11 px-4 border border-gray-300 rounded-lg text-sm leading-none focus:outline-none focus:ring-2 focus:ring-indigo-500
+           @error('birth_date') border-red-400 @enderror">
                         @error('birth_date') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
 
@@ -146,8 +145,8 @@
         </div>
     </main>
 
-    <footer class="py-3 text-center">
-        <p class="text-xs text-white/30">
+<footer class="py-2 text-center">
+            <p class="text-xs text-white/30">
             Desarrollado por <span class="font-semibold text-white/50">Fidelight</span> · © {{ date('Y') }}
         </p>
     </footer>
