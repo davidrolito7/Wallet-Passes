@@ -34,9 +34,11 @@
     </style>
 </head>
 
-<body class="min-h-screen" style="background-color: {{ $business->primary_color ?? '#1a1a2e' }}">
+<body class="min-h-screen flex flex-col" style="background-color: {{ $business->primary_color ?? '#1a1a2e' }}">
 
-<main class="flex justify-center px-4 pt-5 pb-2 sm:min-h-screen sm:items-center sm:py-6">
+<main class="flex-1 flex items-start sm:items-center justify-center p-4 pt-6 sm:py-6">       
+     <div class="w-full max-w-md">
+
             {{-- Header del negocio --}}
             <div class="text-center mb-6">
                 @if($business->logoPublicUrl())
@@ -144,11 +146,11 @@
         </div>
     </main>
 
-<footer class="pt-1 pb-4 text-center">
-    <p class="text-xs text-white/30">
-        Desarrollado por <span class="font-semibold text-white/50">Fidelight</span> · © {{ date('Y') }}
-    </p>
-</footer>
+<footer class="pb-2 text-center">
+            <p class="text-xs text-white/30">
+            Desarrollado por <span class="font-semibold text-white/50">Fidelight</span> · © {{ date('Y') }}
+        </p>
+    </footer>
 
     @unless(session('card_added'))
     <script>
