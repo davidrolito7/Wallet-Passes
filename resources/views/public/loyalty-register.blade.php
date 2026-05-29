@@ -119,11 +119,11 @@
                         </div>
                     </div>
 
-                    <div>
+                    <div class="overflow-hidden">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento *</label>
                         <input type="date" name="birth_date" value="{{ old('birth_date') }}" required
                             max="{{ now()->subDay()->format('Y-m-d') }}"
-                            class="w-full appearance-none px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500
                                       @error('birth_date') border-red-400 @enderror">
                         @error('birth_date') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
