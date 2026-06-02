@@ -16,6 +16,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -209,7 +210,7 @@ class LoyaltyProgramResource extends Resource
             // GOOGLE WALLET
             // ─────────────────────────────────────────────────────────
             Section::make('Google Wallet')
-                ->description('Configuración avanzada.')
+                ->description('Configuración avanzada y notificaciones Android.')
                 ->icon('heroicon-o-wallet')
                 ->collapsible()
                 ->collapsed()
@@ -217,8 +218,53 @@ class LoyaltyProgramResource extends Resource
 
                     TextInput::make('google_class_suffix')
                         ->label('Class Suffix')
-                        ->helperText('Opcional')
+                        ->helperText('Opcional. Identificador único de la clase en Google Wallet.')
                         ->unique(ignoreRecord: true),
+
+                ])
+                ->columns(1),
+
+            // ─────────────────────────────────────────────────────────
+            // NOTIFICACIONES GOOGLE WALLET
+            // ─────────────────────────────────────────────────────────
+            Section::make('Notificaciones Google Wallet')
+                ->description('Configura qué recibe el cliente en Android al registrar cada visita.')
+                ->icon('heroicon-o-bell')
+                ->collapsible()
+                ->collapsed()
+                ->schema([
+
+                    Toggle::make('visit_notification_enabled')
+                        ->label('Activar mensaje personalizado por visita')
+                        ->helperText('Cuando está activo, se envía el mensaje configurado abajo al sumar cada visita en Google Wallet.')
+                        ->inline(false)
+                        ->live(),
+
+                    TextInput::make('visit_notification_title')
+                        ->label('Título del mensaje')
+                        ->placeholder('Nueva visita registrada')
+                        ->helperText('Variables: {first_name} · {business_name} · {program_name}')
+                        ->maxLength(100)
+                        ->visible(fn (Get $get) => (bool) $get('visit_notification_enabled')),
+
+                    Textarea::make('visit_notification_message')
+                        ->label('Cuerpo del mensaje')
+                        ->placeholder('Llevas {stamps_collected}/{total_stamps} visitas. ¡Gracias por visitarnos!')
+                        ->helperText('Variables disponibles: {first_name} {full_name} {stamps_collected} {total_stamps} {remaining_stamps} {business_name} {program_name} {next_reward} {reward_title}')
+                        ->rows(3)
+                        ->maxLength(500)
+                        ->visible(fn (Get $get) => (bool) $get('visit_notification_enabled')),
+
+                    Select::make('google_wallet_notification_mode')
+                        ->label('Modo de notificación Android')
+                        ->options([
+                            'custom_message_only' => 'Solo mensaje personalizado — evita doble notificación (recomendado)',
+                            'both'                => 'Ambas — balance del sistema + mensaje personalizado',
+                        ])
+                        ->default('custom_message_only')
+                        ->native(false)
+                        ->helperText('Sin mensaje personalizado activo siempre se usa la notificación de balance (sistema).')
+                        ->visible(fn (Get $get) => (bool) $get('visit_notification_enabled')),
 
                 ])
                 ->columns(1),

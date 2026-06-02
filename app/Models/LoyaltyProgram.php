@@ -30,13 +30,18 @@ class LoyaltyProgram extends Model
         'reward_description',
         'google_class_suffix',
         'is_active',
+        'visit_notification_enabled',
+        'visit_notification_title',
+        'visit_notification_message',
+        'google_wallet_notification_mode',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_active' => 'boolean',
-            'total_stamps' => 'integer',
+            'is_active'                   => 'boolean',
+            'total_stamps'                => 'integer',
+            'visit_notification_enabled'  => 'boolean',
         ];
     }
 

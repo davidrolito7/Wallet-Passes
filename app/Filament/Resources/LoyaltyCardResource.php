@@ -16,7 +16,9 @@ use Filament\Actions\ViewAction;
 use Illuminate\Database\Eloquent\Collection;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -201,6 +203,45 @@ class LoyaltyCardResource extends Resource
                         Notification::make()->title('Premio canjeado')->success()->send();
                     })
                     ->visible(fn (LoyaltyCard $record) => $record->is_completed),
+
+                Action::make('send_wallet_message')
+                    ->label('Mensaje')
+                    ->icon('heroicon-o-chat-bubble-left-right')
+                    ->color('info')
+                    ->modalHeading('Enviar mensaje al Wallet')
+                    ->modalDescription(fn (LoyaltyCard $record) => $record->fullName().' · '.$record->progressText())
+                    ->form([
+                        TextInput::make('msg_title')
+                            ->label('Título')
+                            ->required()
+                            ->maxLength(100)
+                            ->placeholder('Ej: ¡Feliz cumpleaños!'),
+                        Textarea::make('msg_body')
+                            ->label('Mensaje')
+                            ->required()
+                            ->rows(3)
+                            ->maxLength(500)
+                            ->placeholder('Ej: Hoy tienes 2×1 en todas tus bebidas.'),
+                        Toggle::make('notify')
+                            ->label('Enviar notificación push')
+                            ->helperText('Android: notificación en Google Wallet. iPhone: notificación en Apple Wallet.')
+                            ->default(true)
+                            ->inline(false),
+                    ])
+                    ->action(function (LoyaltyCard $record, array $data) {
+                        app(LoyaltyService::class)->sendMessage(
+                            $record,
+                            $data['msg_title'],
+                            $data['msg_body'],
+                            $data['notify'] ?? true,
+                        );
+                        Notification::make()
+                            ->title('Mensaje enviado')
+                            ->body('Enviado a Google Wallet y/o Apple Wallet según los passes de la tarjeta.')
+                            ->success()
+                            ->send();
+                    })
+                    ->visible(fn (LoyaltyCard $record) => (bool) $record->google_pass_id || (bool) $record->apple_pass_id),
 
                 ViewAction::make(),
                 EditAction::make(),

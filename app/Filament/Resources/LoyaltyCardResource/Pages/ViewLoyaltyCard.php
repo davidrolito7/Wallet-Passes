@@ -8,6 +8,9 @@ use App\Services\AppleWalletService;
 use App\Services\LoyaltyService;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
@@ -90,6 +93,45 @@ class ViewLoyaltyCard extends ViewRecord
                     }
                 })
                 ->visible(fn () => ! $this->record->apple_pass_id && app(AppleWalletService::class)->isConfigured()),
+
+            Action::make('send_wallet_message')
+                ->label('Enviar Mensaje')
+                ->icon('heroicon-o-chat-bubble-left-right')
+                ->color('info')
+                ->modalHeading('Enviar mensaje al Wallet')
+                ->modalDescription(fn () => $this->record->fullName().' · '.$this->record->progressText())
+                ->form([
+                    TextInput::make('msg_title')
+                        ->label('Título')
+                        ->required()
+                        ->maxLength(100)
+                        ->placeholder('Ej: ¡Feliz cumpleaños!'),
+                    Textarea::make('msg_body')
+                        ->label('Mensaje')
+                        ->required()
+                        ->rows(3)
+                        ->maxLength(500)
+                        ->placeholder('Ej: Hoy tienes 2×1 en todas tus bebidas.'),
+                    Toggle::make('notify')
+                        ->label('Enviar notificación push')
+                        ->helperText('Android: notificación en Google Wallet. iPhone: notificación en Apple Wallet.')
+                        ->default(true)
+                        ->inline(false),
+                ])
+                ->action(function (array $data) {
+                    app(LoyaltyService::class)->sendMessage(
+                        $this->record,
+                        $data['msg_title'],
+                        $data['msg_body'],
+                        $data['notify'] ?? true,
+                    );
+                    Notification::make()
+                        ->title('Mensaje enviado')
+                        ->body('Enviado a Google Wallet y/o Apple Wallet según los passes de la tarjeta.')
+                        ->success()
+                        ->send();
+                })
+                ->visible(fn () => (bool) $this->record->google_pass_id || (bool) $this->record->apple_pass_id),
 
             EditAction::make(),
         ];

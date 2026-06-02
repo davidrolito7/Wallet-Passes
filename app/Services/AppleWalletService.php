@@ -127,11 +127,96 @@ class AppleWalletService
             }
         }
 
-        // Push siempre via next_reward — presente en todos los passes independientemente del modo
-        $pass->updateField('next_reward', $this->nextRewardText($card), changeMessage: 'Nueva visita registrada');
+        // Push siempre via next_reward — presente en todos los passes.
+        // changeMessage es el texto que aparece en la notificación de iPhone.
+        // Si el programa tiene título personalizado configurado, se usa ese; si no, el fallback genérico.
+        $changeMessage = $this->resolveVisitChangeMessage($card);
+        $pass->updateField('next_reward', $this->nextRewardText($card), changeMessage: $changeMessage);
+    }
+
+    /**
+     * Envía un mensaje manual al Apple Wallet de una tarjeta.
+     *
+     * Apple Wallet no tiene un endpoint addmessage como Google. La única forma de notificar
+     * es actualizar un campo del pase con changeMessage (texto de la notificación push).
+     * Se usa el campo next_reward como portador temporal — en la próxima visita se reescribe
+     * con el texto real del siguiente premio.
+     *
+     * Si $notify es false se omite: no hay forma de actualizar el pase silenciosamente
+     * sin que el dispositivo reciba la notificación de "pase actualizado".
+     */
+    public function sendMessage(LoyaltyCard $card, string $title, string $message, bool $notify = true): void
+    {
+        if (! $this->isConfigured() || ! $notify) {
+            return;
+        }
+
+        $pass = $card->applePass();
+
+        if (! $pass) {
+            return;
+        }
+
+        // Actualizar next_reward con el cuerpo del mensaje y changeMessage con el título.
+        // En iPhone aparece: [nombre de la app] · $title (en la notificación lock-screen).
+        // El campo del pase mostrará $message hasta la próxima actualización de visita.
+        if ($this->passHasField($pass, 'next_reward')) {
+            $pass->updateField('next_reward', $message, changeMessage: $title);
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Devuelve el texto de la notificación push de Apple (changeMessage) para una visita.
+     * Usa el título configurado en el programa si está habilitado; si no, el texto por defecto.
+     */
+    private function resolveVisitChangeMessage(LoyaltyCard $card): string
+    {
+        $program = $card->loyaltyProgram;
+
+        if (
+            ($program->visit_notification_enabled ?? false)
+            && filled($program->visit_notification_title)
+        ) {
+            return $this->resolveTemplate($program->visit_notification_title, $card);
+        }
+
+        return 'Nueva visita registrada';
+    }
+
+    /**
+     * Sustituye variables de plantilla con valores reales de la tarjeta y el programa.
+     * Variables soportadas: {first_name} {full_name} {stamps_collected} {total_stamps}
+     *                       {remaining_stamps} {business_name} {program_name}
+     *                       {next_reward} {reward_title}
+     */
+    private function resolveTemplate(string $template, LoyaltyCard $card): string
+    {
+        $program  = $card->loyaltyProgram;
+        $business = $program->business;
+
+        $next = $program->milestones()
+            ->where('stamp_count', '>', $card->stamps_collected)
+            ->orderBy('stamp_count')
+            ->first();
+
+        $remaining = max(0, ($next?->stamp_count ?? $program->total_stamps) - $card->stamps_collected);
+
+        $vars = [
+            '{first_name}'       => $card->first_name,
+            '{full_name}'        => $card->fullName(),
+            '{stamps_collected}' => $card->stamps_collected,
+            '{total_stamps}'     => $program->total_stamps,
+            '{remaining_stamps}' => $remaining,
+            '{business_name}'    => $business->name,
+            '{program_name}'     => $program->name,
+            '{next_reward}'      => $next?->reward_title ?? $program->reward_title,
+            '{reward_title}'     => $program->reward_title,
+        ];
+
+        return str_replace(array_keys($vars), array_values($vars), $template);
+    }
 
     private function nextRewardText(LoyaltyCard $card): string
     {

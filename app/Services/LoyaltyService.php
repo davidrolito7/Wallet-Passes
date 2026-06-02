@@ -101,10 +101,7 @@ class LoyaltyService
         // Check which milestones were crossed in this stamp range
         $triggeredMilestones = $this->triggerMilestones($card, $previousTotal, $newTotal, $recordedBy);
 
-        // Push wallet update synchronously — MobilePass::boot() fires PushPassUpdateJob
-        // (spatie package) which calls patchObject on the Google Wallet API immediately
-        // when MOBILE_PASS_QUEUE_CONNECTION is null.
-        $this->pushWalletUpdate($card->fresh());
+        $this->pushWalletUpdate($card->fresh(), sendVisitMessage: true);
 
         return [
             'card'       => $card->fresh(),
@@ -151,10 +148,28 @@ class LoyaltyService
         ]);
     }
 
-    private function pushWalletUpdate(LoyaltyCard $card): void
+    /**
+     * Send a one-off message to all wallet passes the card has (Google + Apple).
+     *
+     * Google Wallet: uses addmessage endpoint → push notification on Android.
+     * Apple Wallet:  updates the next_reward field with changeMessage → notification on iPhone.
+     *                If $notify is false, Apple is skipped (no silent update available).
+     */
+    public function sendMessage(LoyaltyCard $card, string $title, string $message, bool $notify = true): void
     {
         if ($card->google_pass_id) {
-            $this->google->updatePass($card);
+            $this->google->sendMessage($card, $title, $message, $notify);
+        }
+
+        if ($card->apple_pass_id) {
+            $this->apple->sendMessage($card, $title, $message, $notify);
+        }
+    }
+
+    private function pushWalletUpdate(LoyaltyCard $card, bool $notify = true, bool $sendVisitMessage = false): void
+    {
+        if ($card->google_pass_id) {
+            $this->google->updatePass($card, notify: $notify, sendVisitMessage: $sendVisitMessage);
         }
 
         if ($card->apple_pass_id) {
