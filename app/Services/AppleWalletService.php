@@ -50,6 +50,9 @@ class AppleWalletService
             ->addBackField('program_name', $program->name, label: 'Programa')
             ->addBackField('total_stamps', $program->total_stamps . ' visitas para completar', label: 'Meta')
             ->addBackField('reward', $program->reward_title, label: 'Premio Final')
+            // wallet_msg: campo portador de notificaciones. Su valor es la última notificación
+            // enviada. changeMessage '%@' hace que Apple muestre el valor como texto del push.
+            ->addBackField('wallet_msg', '', label: 'Aviso')
             ->setBarcode(BarcodeType::Qr, $barcodeValue);
 
         if ($hasStickers) {
@@ -106,46 +109,55 @@ class AppleWalletService
         $program     = $card->loyaltyProgram;
         $hasStickers = (bool) ($program->filled_stamp_image || $program->empty_stamp_image);
 
+        // Actualizar imágenes sin disparar APNS (el push lo gestiona el builder abajo).
         if ($hasStickers) {
-            // Regenerar strip con el nuevo conteo de sellos
             $paths  = app(AppleStampImageService::class)->regenerateFor($card);
             $images = $pass->images ?? [];
             $images['strip'] = ['x1Path' => $paths['x1'], 'x2Path' => $paths['x2'], 'x3Path' => null];
-            $pass->update(['images' => $images]);
+            MobilePass::withoutEvents(fn () => $pass->update(['images' => $images]));
+            // Refrescar el modelo para que el builder cargue las imágenes nuevas.
+            $pass->images = $images;
+        }
 
-            // Actualizar contador visible en campo card_id
-            $pass->updateField('card_id', 'Vista ' . $card->stamps_collected . '/' . $program->total_stamps);
+        // Usar el builder para actualizar todos los campos en un único save() → un único push APNS.
+        $builder = $pass->builder();
 
-            // Si el pass fue creado sin stickers tendrá campo progress — limpiarlo para no mostrar dato viejo
+        if ($hasStickers) {
+            $builder->updateField('card_id', 'Vista ' . $card->stamps_collected . '/' . $program->total_stamps);
             if ($this->passHasField($pass, 'progress')) {
-                $pass->updateField('progress', '');
+                $builder->updateField('progress', '');
             }
         } else {
-            // Actualizar campo progress si existe en el pass
             if ($this->passHasField($pass, 'progress')) {
-                $pass->updateField('progress', $card->stamps_collected . ' / ' . $program->total_stamps);
+                $builder->updateField('progress', $card->stamps_collected . ' / ' . $program->total_stamps);
             }
         }
 
-        // Push siempre via next_reward — presente en todos los passes.
-        // changeMessage es el texto que aparece en la notificación de iPhone.
-        // Si el programa tiene título personalizado configurado, se usa ese; si no, el fallback genérico.
-        $changeMessage = $this->resolveVisitChangeMessage($card);
-        $pass->updateField('next_reward', $this->nextRewardText($card), changeMessage: $changeMessage);
+        // Actualizar next_reward con el premio real (SIN changeMessage — no genera notificación).
+        $builder->updateField('next_reward', $this->nextRewardText($card));
+
+        // wallet_msg: portador de la notificación push.
+        // Apple requiere '%@' en changeMessage. Al poner '%@' el texto de la notificación
+        // es el VALOR del campo (wallet_msg). Así el mensaje no toca next_reward.
+        $notifText = $this->resolveVisitMessage($card);
+        $builder->addBackField('wallet_msg', $notifText, label: 'Aviso', changeMessage: '%@');
+
+        // Un solo save → un solo push APNS con el mensaje correcto.
+        $builder->save();
     }
 
     /**
      * Envía un mensaje manual al Apple Wallet de una tarjeta.
      *
-     * Apple Wallet no tiene un endpoint addmessage como Google. La única forma de notificar
-     * es actualizar un campo del pase con changeMessage (texto de la notificación push).
-     * Se usa el campo next_reward como portador temporal — en la próxima visita se reescribe
-     * con el texto real del siguiente premio.
+     * Apple no tiene un endpoint addmessage como Google. La notificación push se activa
+     * actualizando un campo del pase con changeMessage: '%@'. El valor del campo ES el texto
+     * que aparece en la notificación de iPhone. Se usa el campo back 'wallet_msg' para no
+     * interferir con los campos visibles del frente del pase.
      *
-     * Si $notify es false se omite: no hay forma de actualizar el pase silenciosamente
-     * sin que el dispositivo reciba la notificación de "pase actualizado".
+     * Si $notify es false se omite la actualización completa (no hay forma de actualizar
+     * el pase en Apple sin que el dispositivo registrado reciba la notificación de cambio).
      */
-    public function sendMessage(LoyaltyCard $card, string $title, string $message, bool $notify = true): void
+    public function sendMessage(LoyaltyCard $card, string $message, bool $notify = true): void
     {
         if (! $this->isConfigured() || ! $notify) {
             return;
@@ -157,29 +169,28 @@ class AppleWalletService
             return;
         }
 
-        // Actualizar next_reward con el cuerpo del mensaje y changeMessage con el título.
-        // En iPhone aparece: [nombre de la app] · $title (en la notificación lock-screen).
-        // El campo del pase mostrará $message hasta la próxima actualización de visita.
-        if ($this->passHasField($pass, 'next_reward')) {
-            $pass->updateField('next_reward', $message, changeMessage: $title);
-        }
+        // addBackField agrega wallet_msg si no existe (pases anteriores) o lo actualiza si ya existe.
+        // changeMessage: '%@' → la notificación muestra el valor del campo = $message.
+        $pass->builder()
+            ->addBackField('wallet_msg', $message, label: 'Aviso', changeMessage: '%@')
+            ->save();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /**
-     * Devuelve el texto de la notificación push de Apple (changeMessage) para una visita.
-     * Usa el título configurado en el programa si está habilitado; si no, el texto por defecto.
+     * Devuelve el texto que aparecerá en la notificación push de Apple al registrar una visita.
+     * Usa el mensaje configurado en el programa; si no hay uno, devuelve el texto por defecto.
      */
-    private function resolveVisitChangeMessage(LoyaltyCard $card): string
+    private function resolveVisitMessage(LoyaltyCard $card): string
     {
         $program = $card->loyaltyProgram;
 
         if (
             ($program->visit_notification_enabled ?? false)
-            && filled($program->visit_notification_title)
+            && filled($program->visit_notification_message)
         ) {
-            return $this->resolveTemplate($program->visit_notification_title, $card);
+            return $this->resolveTemplate($program->visit_notification_message, $card);
         }
 
         return 'Nueva visita registrada';

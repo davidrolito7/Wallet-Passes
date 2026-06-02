@@ -101,29 +101,18 @@ class ViewLoyaltyCard extends ViewRecord
                 ->modalHeading('Enviar mensaje al Wallet')
                 ->modalDescription(fn () => $this->record->fullName().' · '.$this->record->progressText())
                 ->form([
-                    TextInput::make('msg_title')
-                        ->label('Título')
-                        ->required()
-                        ->maxLength(100)
-                        ->placeholder('Ej: ¡Feliz cumpleaños!'),
-                    Textarea::make('msg_body')
+                    Textarea::make('message')
                         ->label('Mensaje')
                         ->required()
                         ->rows(3)
-                        ->maxLength(500)
-                        ->placeholder('Ej: Hoy tienes 2×1 en todas tus bebidas.'),
-                    Toggle::make('notify')
-                        ->label('Enviar notificación push')
-                        ->helperText('Android: notificación en Google Wallet. iPhone: notificación en Apple Wallet.')
-                        ->default(true)
-                        ->inline(false),
+                        ->maxLength(300)
+                        ->placeholder('Ej: ¡Hoy tienes 2×1 en todas tus bebidas!')
+                        ->helperText('Se enviará como notificación push en Google Wallet (Android) y Apple Wallet (iPhone).'),
                 ])
                 ->action(function (array $data) {
                     app(LoyaltyService::class)->sendMessage(
                         $this->record,
-                        $data['msg_title'],
-                        $data['msg_body'],
-                        $data['notify'] ?? true,
+                        $data['message'],
                     );
                     Notification::make()
                         ->title('Mensaje enviado')

@@ -186,27 +186,21 @@ class GoogleWalletService
 
         $program = $card->loyaltyProgram;
 
-        $rawTitle = filled($program->visit_notification_title)
-            ? $program->visit_notification_title
-            : 'Nueva visita registrada';
-
-        $rawBody = filled($program->visit_notification_message)
+        $rawMessage = filled($program->visit_notification_message)
             ? $program->visit_notification_message
             : 'Llevas {stamps_collected}/{total_stamps} visitas.';
 
-        $title     = $this->resolveTemplate($rawTitle, $card);
-        $body      = $this->resolveTemplate($rawBody, $card);
+        $message   = $this->resolveTemplate($rawMessage, $card);
         $messageId = 'visit-'.$card->id.'-'.$card->stamps_collected.'-'.time();
 
         Log::info('GoogleWallet: sending visit notification message', [
             'object_id'  => $objectId,
             'card_id'    => $card->id,
             'message_id' => $messageId,
-            'title'      => $title,
-            'body'       => $body,
+            'message'    => $message,
         ]);
 
-        $this->callAddMessage($objectId, $messageId, $title, $body, notify: true);
+        $this->callAddMessage($objectId, $messageId, $message, notify: true);
     }
 
     /**
@@ -216,7 +210,7 @@ class GoogleWalletService
      *
      * @param  bool  $notify  true → TEXT_AND_NOTIFY (push); false → TEXT (silent).
      */
-    public function sendMessage(LoyaltyCard $card, string $title, string $message, bool $notify = true): void
+    public function sendMessage(LoyaltyCard $card, string $message, bool $notify = true): void
     {
         $pass = $card->googlePass();
 
@@ -241,11 +235,11 @@ class GoogleWalletService
             'object_id'  => $objectId,
             'card_id'    => $card->id,
             'message_id' => $messageId,
-            'title'      => $title,
+            'message'    => $message,
             'notify'     => $notify,
         ]);
 
-        $this->callAddMessage($objectId, $messageId, $title, $message, $notify);
+        $this->callAddMessage($objectId, $messageId, $message, $notify);
     }
 
     // ── Payload builders ──────────────────────────────────────────────────────
@@ -333,7 +327,6 @@ class GoogleWalletService
     private function callAddMessage(
         string $objectId,
         string $messageId,
-        string $header,
         string $body,
         bool $notify = true,
     ): void {
@@ -343,7 +336,6 @@ class GoogleWalletService
 
         $payload = [
             'message' => [
-                'header'      => $header,
                 'body'        => $body,
                 'id'          => $messageId,
                 'messageType' => $messageType,
@@ -369,7 +361,7 @@ class GoogleWalletService
             Log::info('GoogleWallet: addMessage sent successfully', [
                 'object_id'    => $objectId,
                 'message_id'   => $messageId,
-                'header'       => $header,
+                'body'         => $body,
                 'message_type' => $messageType,
             ]);
         } catch (\Throwable $e) {

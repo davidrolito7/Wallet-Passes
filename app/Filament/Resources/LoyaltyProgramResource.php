@@ -240,19 +240,12 @@ class LoyaltyProgramResource extends Resource
                         ->inline(false)
                         ->live(),
 
-                    TextInput::make('visit_notification_title')
-                        ->label('Título del mensaje')
-                        ->placeholder('Nueva visita registrada')
-                        ->helperText('Variables: {first_name} · {business_name} · {program_name}')
-                        ->maxLength(100)
-                        ->visible(fn (Get $get) => (bool) $get('visit_notification_enabled')),
-
                     Textarea::make('visit_notification_message')
-                        ->label('Cuerpo del mensaje')
-                        ->placeholder('Llevas {stamps_collected}/{total_stamps} visitas. ¡Gracias por visitarnos!')
-                        ->helperText('Variables disponibles: {first_name} {full_name} {stamps_collected} {total_stamps} {remaining_stamps} {business_name} {program_name} {next_reward} {reward_title}')
-                        ->rows(3)
-                        ->maxLength(500)
+                        ->label('Mensaje de visita')
+                        ->placeholder('Llevas {stamps_collected}/{total_stamps} visitas. ¡Gracias por visitarnos, {first_name}!')
+                        ->helperText('Una sola oración. Variables: {first_name} {stamps_collected} {total_stamps} {remaining_stamps} {business_name} {next_reward}')
+                        ->rows(2)
+                        ->maxLength(300)
                         ->visible(fn (Get $get) => (bool) $get('visit_notification_enabled')),
 
                     Select::make('google_wallet_notification_mode')

@@ -155,14 +155,21 @@ class LoyaltyService
      * Apple Wallet:  updates the next_reward field with changeMessage → notification on iPhone.
      *                If $notify is false, Apple is skipped (no silent update available).
      */
-    public function sendMessage(LoyaltyCard $card, string $title, string $message, bool $notify = true): void
+    /**
+     * Send a one-off message to all wallet passes (Google Wallet + Apple Wallet).
+     *
+     * Google: addmessage endpoint → notificación push en Android.
+     * Apple:  actualiza el campo back 'wallet_msg' con changeMessage '%@' → push en iPhone.
+     *         Si $notify es false, Apple se omite (no hay actualización silenciosa disponible).
+     */
+    public function sendMessage(LoyaltyCard $card, string $message, bool $notify = true): void
     {
         if ($card->google_pass_id) {
-            $this->google->sendMessage($card, $title, $message, $notify);
+            $this->google->sendMessage($card, $message, $notify);
         }
 
         if ($card->apple_pass_id) {
-            $this->apple->sendMessage($card, $title, $message, $notify);
+            $this->apple->sendMessage($card, $message, $notify);
         }
     }
 

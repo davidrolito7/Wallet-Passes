@@ -188,106 +188,57 @@
             <div id="notification-fields"
                  class="space-y-4 pl-7 border-l-2 border-indigo-100 @if(!$notifEnabled) hidden @endif">
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                    {{-- Título --}}
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Título del mensaje
-                            <span class="text-xs font-normal text-gray-400 ml-1">— notificación push en ambas plataformas</span>
-                        </label>
-                        <input type="text"
-                               name="visit_notification_title"
-                               value="{{ old('visit_notification_title', $program?->visit_notification_title) }}"
-                               maxlength="100"
-                               placeholder="Nueva visita registrada"
-                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('visit_notification_title') border-red-400 @enderror">
-                        <p class="mt-1 text-xs text-gray-400">
-                            Variables:
-                            <code class="bg-gray-100 px-1 rounded">{first_name}</code>
-                            <code class="bg-gray-100 px-1 rounded">{stamps_collected}</code>
-                            <code class="bg-gray-100 px-1 rounded">{total_stamps}</code>
-                            <code class="bg-gray-100 px-1 rounded">{business_name}</code>
-                        </p>
-                        @error('visit_notification_title')
-                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    {{-- Modo Android --}}
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Modo de notificación Android
-                            <span class="text-xs font-normal text-gray-400 ml-1">— solo afecta Google Wallet</span>
-                        </label>
-                        <select name="google_wallet_notification_mode"
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                            <option value="custom_message_only" @selected($currentMode === 'custom_message_only')>
-                                Solo mensaje personalizado (recomendado — 1 notificación)
-                            </option>
-                            <option value="both" @selected($currentMode === 'both')>
-                                Ambas — balance del sistema + mensaje (2 notificaciones)
-                            </option>
-                        </select>
-                        <p class="mt-1 text-xs text-gray-400">
-                            iPhone siempre usa el título como `changeMessage` (1 notificación). Este ajuste solo controla Android.
-                        </p>
-                    </div>
-
-                </div>
-
-                {{-- Cuerpo del mensaje --}}
+                {{-- Un solo mensaje para ambas plataformas --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Cuerpo del mensaje
-                        <span class="text-xs font-normal text-gray-400 ml-1">— solo visible en Google Wallet (Android)</span>
+                        Mensaje de visita
                     </label>
                     <textarea name="visit_notification_message"
-                              rows="3"
-                              maxlength="500"
+                              rows="2"
+                              maxlength="300"
                               placeholder="Llevas {stamps_collected}/{total_stamps} visitas. ¡Gracias por visitarnos, {first_name}!"
                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none @error('visit_notification_message') border-red-400 @enderror">{{ old('visit_notification_message', $program?->visit_notification_message) }}</textarea>
                     <p class="mt-1 text-xs text-gray-400">
-                        Variables: <code class="bg-gray-100 px-1 rounded">{first_name}</code>
-                        <code class="bg-gray-100 px-1 rounded">{full_name}</code>
+                        Una sola oración. Variables:
+                        <code class="bg-gray-100 px-1 rounded">{first_name}</code>
                         <code class="bg-gray-100 px-1 rounded">{stamps_collected}</code>
                         <code class="bg-gray-100 px-1 rounded">{total_stamps}</code>
                         <code class="bg-gray-100 px-1 rounded">{remaining_stamps}</code>
                         <code class="bg-gray-100 px-1 rounded">{business_name}</code>
                         <code class="bg-gray-100 px-1 rounded">{next_reward}</code>
-                        <code class="bg-gray-100 px-1 rounded">{reward_title}</code>
                     </p>
                     @error('visit_notification_message')
                         <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
 
+                {{-- Siempre custom_message_only — no se expone al usuario --}}
+                <input type="hidden" name="google_wallet_notification_mode" value="custom_message_only">
+
                 {{-- Vista previa --}}
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Vista previa</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                        {{-- Android preview --}}
+                        {{-- Android --}}
                         <div>
                             <p class="text-xs text-gray-400 mb-1.5">Android · Google Wallet</p>
                             <div class="flex items-start gap-2 bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
                                 <div class="w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">G</div>
                                 <div class="min-w-0">
-                                    <p id="preview-android-title" class="font-semibold text-gray-800 text-xs truncate">Nueva visita registrada</p>
-                                    <p id="preview-android-body" class="text-gray-500 text-xs mt-0.5 line-clamp-2">Llevas {stamps_collected}/{total_stamps} visitas.</p>
+                                    <p id="preview-android-msg" class="text-gray-600 text-xs mt-0.5 line-clamp-2">Llevas {stamps_collected}/{total_stamps} visitas.</p>
                                 </div>
                             </div>
                         </div>
 
-                        {{-- iPhone preview --}}
+                        {{-- iPhone --}}
                         <div>
                             <p class="text-xs text-gray-400 mb-1.5">iPhone · Apple Wallet</p>
                             <div class="flex items-start gap-2 bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
                                 <div class="w-7 h-7 bg-black rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">A</div>
                                 <div class="min-w-0">
                                     <p class="font-semibold text-gray-800 text-xs">Apple Wallet</p>
-                                    <p id="preview-apple-title" class="text-gray-500 text-xs mt-0.5 truncate">Nueva visita registrada</p>
-                                    <p class="text-gray-400 text-xs italic mt-0.5">(solo muestra el título)</p>
+                                    <p id="preview-apple-msg" class="text-gray-500 text-xs mt-0.5 truncate">Llevas {stamps_collected}/{total_stamps} visitas.</p>
                                 </div>
                             </div>
                         </div>
@@ -321,25 +272,19 @@ function toggleNotificationFields(enabled) {
 }
 
 (function initNotificationPreview() {
-    const titleInput = document.querySelector('[name="visit_notification_title"]');
-    const bodyInput  = document.querySelector('[name="visit_notification_message"]');
-    const androidTitle = document.getElementById('preview-android-title');
-    const androidBody  = document.getElementById('preview-android-body');
-    const appleTitle   = document.getElementById('preview-apple-title');
+    const msgInput   = document.querySelector('[name="visit_notification_message"]');
+    const androidMsg = document.getElementById('preview-android-msg');
+    const appleMsg   = document.getElementById('preview-apple-msg');
 
-    if (!titleInput) return;
+    if (!msgInput) return;
 
     function updatePreview() {
-        const t = titleInput.value.trim() || 'Nueva visita registrada';
-        const b = bodyInput ? (bodyInput.value.trim() || 'Llevas {stamps_collected}/{total_stamps} visitas.') : '';
-
-        if (androidTitle) androidTitle.textContent = t;
-        if (androidBody)  androidBody.textContent  = b;
-        if (appleTitle)   appleTitle.textContent   = t;
+        const m = msgInput.value.trim() || 'Llevas {stamps_collected}/{total_stamps} visitas.';
+        if (androidMsg) androidMsg.textContent = m;
+        if (appleMsg)   appleMsg.textContent   = m;
     }
 
-    titleInput.addEventListener('input', updatePreview);
-    if (bodyInput) bodyInput.addEventListener('input', updatePreview);
+    msgInput.addEventListener('input', updatePreview);
     updatePreview();
 })();
 
