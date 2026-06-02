@@ -11,6 +11,17 @@ class LoyaltyProgram extends Model
 {
     use SoftDeletes;
 
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        // Cascade soft-delete to cards when the program is deleted via Eloquent.
+        // (DB-level cascadeOnDelete only fires on hard DELETE, not on Eloquent soft-delete.)
+        static::deleting(function (LoyaltyProgram $program) {
+            $program->loyaltyCards()->each(fn ($card) => $card->delete());
+        });
+    }
+
     protected $fillable = [
         'business_id',
         'name',

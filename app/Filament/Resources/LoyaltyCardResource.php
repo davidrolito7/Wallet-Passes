@@ -85,6 +85,7 @@ class LoyaltyCardResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn ($query) => $query->whereHas('loyaltyProgram'))
             ->columns([
                 TextColumn::make('loyaltyProgram.business.name')
                     ->label('Negocio')

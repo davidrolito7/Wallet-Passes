@@ -10,6 +10,16 @@ class Business extends Authenticatable
 {
     use SoftDeletes;
 
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        // Cascade soft-delete to programs (which in turn cascade to cards).
+        static::deleting(function (Business $business) {
+            $business->loyaltyPrograms()->each(fn ($program) => $program->delete());
+        });
+    }
+
     protected $fillable = [
         'name',
         'slug',

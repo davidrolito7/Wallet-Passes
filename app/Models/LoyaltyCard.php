@@ -44,7 +44,8 @@ class LoyaltyCard extends Model
 
     public function loyaltyProgram(): BelongsTo
     {
-        return $this->belongsTo(LoyaltyProgram::class);
+        // withTrashed ensures soft-deleted programs still load on the card — avoids null crashes.
+        return $this->belongsTo(LoyaltyProgram::class)->withTrashed();
     }
 
     public function stampTransactions(): HasMany
@@ -82,11 +83,19 @@ class LoyaltyCard extends Model
 
     public function progressText(): string
     {
-        return $this->stamps_collected . ' / ' . $this->loyaltyProgram->total_stamps . ' visitas';
+        $total = $this->loyaltyProgram?->total_stamps ?? '?';
+
+        return $this->stamps_collected . ' / ' . $total . ' visitas';
     }
 
     public function nextRewardText(): string
     {
+        $program = $this->loyaltyProgram;
+
+        if (! $program) {
+            return '—';
+        }
+
         $next = $this->nextMilestone();
 
         if ($next) {
@@ -100,10 +109,10 @@ class LoyaltyCard extends Model
                 : 'Próximo premio en ' . $remaining . ' visitas: ' . $next->reward_title;
         }
 
-        $remaining = $this->loyaltyProgram->total_stamps - $this->stamps_collected;
+        $remaining = $program->total_stamps - $this->stamps_collected;
 
         if ($remaining <= 0) {
-            return '¡Premio disponible: ' . $this->loyaltyProgram->reward_title . '!';
+            return '¡Premio disponible: ' . $program->reward_title . '!';
         }
 
         return $remaining === 1
@@ -113,7 +122,7 @@ class LoyaltyCard extends Model
 
     public function nextMilestone(): ?LoyaltyMilestone
     {
-        return $this->loyaltyProgram->milestones()
+        return $this->loyaltyProgram?->milestones()
             ->where('stamp_count', '>', $this->stamps_collected)
             ->orderBy('stamp_count')
             ->first();
@@ -121,7 +130,12 @@ class LoyaltyCard extends Model
 
     public function stampVisual(): string
     {
-        $program    = $this->loyaltyProgram;
+        $program = $this->loyaltyProgram;
+
+        if (! $program) {
+            return '—';
+        }
+
         $icon       = $program->stampIconLabel();
         $milestones = $program->milestoneCounts();
 
@@ -141,6 +155,6 @@ class LoyaltyCard extends Model
 
     public function isReadyForReward(): bool
     {
-        return $this->stamps_collected >= $this->loyaltyProgram->total_stamps;
+        return $this->stamps_collected >= ($this->loyaltyProgram?->total_stamps ?? PHP_INT_MAX);
     }
 }
