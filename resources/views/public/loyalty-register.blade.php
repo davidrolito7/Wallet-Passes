@@ -194,24 +194,38 @@
     </div>
 
     <script>
-        (function() {
-            var overlay = document.getElementById('loading-overlay');
-            var form = document.getElementById('register-form');
-            var btn = document.getElementById('submit-btn');
+        (function () {
+            var overlay   = document.getElementById('loading-overlay');
+            var form      = document.getElementById('register-form');
+            var btn       = document.getElementById('submit-btn');
+            var submitted = false;
 
-            form.addEventListener('submit', function() {
+            function hideSpinner() {
+                if (!submitted) return;
+                submitted = false;
+                overlay.classList.remove('active');
+                btn.disabled = false;
+                form.reset();
+            }
+
+            form.addEventListener('submit', function () {
                 btn.disabled = true;
                 overlay.classList.add('active');
+                submitted = true;
             });
 
-            // When the browser restores this page from bfcache (back button after wallet redirect),
-            // reset the form and hide the spinner so the user gets a clean slate.
-            window.addEventListener('pageshow', function(e) {
-                if (e.persisted) {
-                    overlay.classList.remove('active');
-                    btn.disabled = false;
-                    form.reset();
-                }
+            // iOS: Safari queda debajo del sheet de Apple Wallet.
+            // Cuando el sheet se cierra la página recupera visibilidad → ocultamos el spinner.
+            document.addEventListener('visibilitychange', function () {
+                if (document.visibilityState === 'visible') hideSpinner();
+            });
+
+            // Respaldo: foco de ventana al regresar a Safari desde otra app.
+            window.addEventListener('focus', hideSpinner);
+
+            // Bfcache: botón «atrás» después de una redirección completa (ej. Google Wallet).
+            window.addEventListener('pageshow', function (e) {
+                if (e.persisted) hideSpinner();
             });
         })();
     </script>
