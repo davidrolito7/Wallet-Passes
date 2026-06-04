@@ -13,24 +13,32 @@
         }
 
         @keyframes pop-in {
-            0% {
-                transform: scale(0.5);
-                opacity: 0;
-            }
-
-            70% {
-                transform: scale(1.1);
-            }
-
-            100% {
-                transform: scale(1);
-                opacity: 1;
-            }
+            0%   { transform: scale(0.5); opacity: 0; }
+            70%  { transform: scale(1.1); }
+            100% { transform: scale(1);   opacity: 1; }
         }
+        .pop-in { animation: pop-in 0.45s ease-out both; }
 
-        .pop-in {
-            animation: pop-in 0.45s ease-out both;
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
+        .spinner-ring {
+            width: 52px; height: 52px;
+            border: 4px solid rgba(255,255,255,0.25);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.85s linear infinite;
+        }
+        #loading-overlay {
+            display: none;
+            position: fixed; inset: 0; z-index: 9999;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+        }
+        #loading-overlay.active { display: flex; }
     </style>
 </head>
 
@@ -132,8 +140,7 @@
                         type="submit"
                         class="w-full text-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
                         style="background-color: {{ $business->primary_color ?? '#4f46e5' }}">
-                        <span id="btn-text">Obtener mi tarjeta de lealtad</span>
-                        <span id="btn-loading" class="hidden">Procesando…</span>
+                        Obtener mi tarjeta de lealtad
                     </button>
 
                     <p class="text-xs text-gray-400 text-center">
@@ -152,17 +159,35 @@
         </p>
     </footer>
 
+    {{-- Spinner overlay (visible on submit, hidden once the response page loads) --}}
+    <div id="loading-overlay" role="status" aria-live="polite" aria-label="Cargando">
+        <div class="flex flex-col items-center gap-5 text-white text-center px-6">
+            <div class="spinner-ring"></div>
+            <p class="text-base font-semibold leading-snug">
+                Estamos creando tu tarjeta<br>
+                <span class="text-sm font-normal opacity-80">Por favor espera…</span>
+            </p>
+        </div>
+    </div>
+
     @unless(session('card_added'))
     <script>
-        document.getElementById('register-form').addEventListener('submit', function() {
-            const btn = document.getElementById('submit-btn');
-            const txtNorm = document.getElementById('btn-text');
-            const txtLoad = document.getElementById('btn-loading');
+        (function () {
+            var overlay = document.getElementById('loading-overlay');
 
-            btn.disabled = true;
-            txtNorm.classList.add('hidden');
-            txtLoad.classList.remove('hidden');
-        });
+            document.getElementById('register-form').addEventListener('submit', function () {
+                document.getElementById('submit-btn').disabled = true;
+                overlay.classList.add('active');
+            });
+
+            // Hide overlay if the browser restores the page from bfcache (iOS Safari back/forward)
+            window.addEventListener('pageshow', function (e) {
+                if (e.persisted) {
+                    overlay.classList.remove('active');
+                    document.getElementById('submit-btn').disabled = false;
+                }
+            });
+        })();
     </script>
     @endunless
 
