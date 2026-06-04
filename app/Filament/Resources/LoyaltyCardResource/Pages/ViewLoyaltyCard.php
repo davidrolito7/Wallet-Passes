@@ -198,10 +198,11 @@ class ViewLoyaltyCard extends ViewRecord
                         RepeatableEntry::make('program_rewards')
                             ->label('')
                             ->state(function (LoyaltyCard $record) {
-                                $program   = $record->loyaltyProgram;
-                                $collected = $record->stamps_collected;
+                                $program     = $record->loyaltyProgram;
+                                $collected   = $record->stamps_collected;
+                                $prizeSystem = $record->resolvedPrizeSystem();
 
-                                $rows = $program->milestones->map(fn ($m) => [
+                                $rows = ($prizeSystem?->milestones ?? collect())->map(fn ($m) => [
                                     'visit'      => $m->stamp_count,
                                     'reward'     => $m->reward_title,
                                     'repeatable' => $m->is_repeatable ? 'Sí' : '—',
@@ -210,7 +211,7 @@ class ViewLoyaltyCard extends ViewRecord
 
                                 $rows[] = [
                                     'visit'      => $program->total_stamps,
-                                    'reward'     => $program->reward_title . ' · Premio final',
+                                    'reward'     => ($prizeSystem?->reward_title ?? '—') . ' · Premio final',
                                     'repeatable' => '—',
                                     'status'     => $collected >= $program->total_stamps ? 'Obtenido' : 'Pendiente',
                                 ];

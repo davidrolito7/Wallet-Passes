@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class LoyaltyMilestone extends Model
 {
     protected $fillable = [
-        'loyalty_program_id',
+        'loyalty_prize_system_id',
         'stamp_count',
         'reward_title',
         'reward_description',
@@ -24,9 +24,9 @@ class LoyaltyMilestone extends Model
         ];
     }
 
-    public function loyaltyProgram(): BelongsTo
+    public function prizeSystem(): BelongsTo
     {
-        return $this->belongsTo(LoyaltyProgram::class);
+        return $this->belongsTo(LoyaltyPrizeSystem::class, 'loyalty_prize_system_id');
     }
 
     public function redemptions(): HasMany

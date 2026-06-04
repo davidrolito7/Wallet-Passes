@@ -49,7 +49,7 @@ class AppleWalletService
             // Reverso de la tarjeta
             ->addBackField('program_name', $program->name, label: 'Programa')
             ->addBackField('total_stamps', $program->total_stamps . ' visitas para completar', label: 'Meta')
-            ->addBackField('reward', $program->reward_title, label: 'Premio Final')
+            ->addBackField('reward', $card->resolvedPrizeSystem()?->reward_title ?? '—', label: 'Premio Final')
             // wallet_msg: campo portador de notificaciones. Su valor es la última notificación
             // enviada. changeMessage '%@' hace que Apple muestre el valor como texto del push.
             ->addBackField('wallet_msg', '', label: 'Aviso')
@@ -204,15 +204,16 @@ class AppleWalletService
      */
     private function resolveTemplate(string $template, LoyaltyCard $card): string
     {
-        $program  = $card->loyaltyProgram;
-        $business = $program->business;
+        $program     = $card->loyaltyProgram;
+        $business    = $program->business;
+        $prizeSystem = $card->resolvedPrizeSystem();
 
-        $next = $program->milestones()
+        $next = $prizeSystem?->milestones()
             ->where('stamp_count', '>', $card->stamps_collected)
-            ->orderBy('stamp_count')
             ->first();
 
-        $remaining = max(0, ($next?->stamp_count ?? $program->total_stamps) - $card->stamps_collected);
+        $remaining   = max(0, ($next?->stamp_count ?? $program->total_stamps) - $card->stamps_collected);
+        $rewardTitle = $prizeSystem?->reward_title ?? '—';
 
         $vars = [
             '{first_name}'       => $card->first_name,
@@ -222,8 +223,8 @@ class AppleWalletService
             '{remaining_stamps}' => $remaining,
             '{business_name}'    => $business->name,
             '{program_name}'     => $program->name,
-            '{next_reward}'      => $next?->reward_title ?? $program->reward_title,
-            '{reward_title}'     => $program->reward_title,
+            '{next_reward}'      => $next?->reward_title ?? $rewardTitle,
+            '{reward_title}'     => $rewardTitle,
         ];
 
         return str_replace(array_keys($vars), array_values($vars), $template);
@@ -231,11 +232,11 @@ class AppleWalletService
 
     private function nextRewardText(LoyaltyCard $card): string
     {
-        $program = $card->loyaltyProgram;
+        $program     = $card->loyaltyProgram;
+        $prizeSystem = $card->resolvedPrizeSystem();
 
-        $next = $program->milestones()
+        $next = $prizeSystem?->milestones()
             ->where('stamp_count', '>', $card->stamps_collected)
-            ->orderBy('stamp_count')
             ->first();
 
         if ($next) {
@@ -245,13 +246,14 @@ class AppleWalletService
                 : $next->reward_title . ' (en ' . $remaining . ' visitas)';
         }
 
-        $remaining = $program->total_stamps - $card->stamps_collected;
+        $rewardTitle = $prizeSystem?->reward_title ?? '—';
+        $remaining   = $program->total_stamps - $card->stamps_collected;
 
         if ($remaining <= 0) {
-            return '¡' . $program->reward_title . ' disponible!';
+            return '¡' . $rewardTitle . ' disponible!';
         }
 
-        return $program->reward_title . ' (en ' . $remaining . ' visitas)';
+        return $rewardTitle . ' (en ' . $remaining . ' visitas)';
     }
 
     private function passHasField(MobilePass $pass, string $key): bool

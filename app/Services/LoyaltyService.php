@@ -41,13 +41,16 @@ class LoyaltyService
 
     public function createCard(LoyaltyProgram $program, string $firstName, string $lastName = '', ?string $birthDate = null, ?string $holderIdentifier = null): LoyaltyCard
     {
+        $firstPrizeSystem = $program->prizeSystems()->first();
+
         $card = LoyaltyCard::create([
-            'loyalty_program_id' => $program->id,
-            'first_name'         => $firstName,
-            'last_name'          => $lastName,
-            'birth_date'         => $birthDate,
-            'holder_identifier'  => $holderIdentifier,
-            'stamps_collected'   => 0,
+            'loyalty_program_id'      => $program->id,
+            'current_prize_system_id' => $firstPrizeSystem?->id,
+            'first_name'              => $firstName,
+            'last_name'               => $lastName,
+            'birth_date'              => $birthDate,
+            'holder_identifier'       => $holderIdentifier,
+            'stamps_collected'        => 0,
         ]);
 
         // Eager-load relations needed by wallet services (business color, icon, etc.)
@@ -110,24 +113,38 @@ class LoyaltyService
     }
 
     /**
-     * Redeem the final program reward (resets the card for a new cycle).
+     * Redeem the final program reward. Advances to the next prize system,
+     * cycling back to the first when all systems have been completed.
      */
     public function redeemReward(LoyaltyCard $card, ?string $redeemedBy = null): RewardRedemption
     {
-        $program = $card->loyaltyProgram;
+        $program       = $card->loyaltyProgram;
+        $currentSystem = $card->resolvedPrizeSystem();
 
         $redemption = RewardRedemption::create([
             'loyalty_card_id' => $card->id,
-            'reward_title'    => $program->reward_title,
+            'reward_title'    => $currentSystem?->reward_title ?? $program->reward_title,
             'redeemed_by'     => $redeemedBy,
             'redeemed_at'     => now(),
         ]);
 
-        // Reset card for the next cycle
+        // Advance to the next prize system; wrap back to the first when exhausted
+        $nextSystem = $currentSystem
+            ? $program->prizeSystems()
+                ->where('sort_order', '>', $currentSystem->sort_order)
+                ->orderBy('sort_order')
+                ->first()
+            : null;
+
+        if (! $nextSystem) {
+            $nextSystem = $program->prizeSystems()->orderBy('sort_order')->first();
+        }
+
         $card->update([
-            'stamps_collected' => 0,
-            'is_completed'     => false,
-            'completed_at'     => null,
+            'stamps_collected'        => 0,
+            'is_completed'            => false,
+            'completed_at'            => null,
+            'current_prize_system_id' => $nextSystem?->id,
         ]);
 
         $this->pushWalletUpdate($card->fresh());
@@ -191,7 +208,13 @@ class LoyaltyService
      */
     private function triggerMilestones(LoyaltyCard $card, int $previousTotal, int $newTotal, ?string $recordedBy): \Illuminate\Support\Collection
     {
-        $milestones = $card->loyaltyProgram->milestones()
+        $prizeSystem = $card->resolvedPrizeSystem();
+
+        if (! $prizeSystem) {
+            return collect();
+        }
+
+        $milestones = $prizeSystem->milestones()
             ->whereBetween('stamp_count', [$previousTotal + 1, $newTotal])
             ->get();
 

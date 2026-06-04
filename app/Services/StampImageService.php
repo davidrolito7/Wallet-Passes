@@ -79,8 +79,11 @@ class StampImageService
         $total    = $program->total_stamps;
         $filled   = min($card->stamps_collected, $total);
 
-        $program->load('milestones');
-        $milestoneCounts = array_flip($program->milestoneCounts());
+        $prizeSystem = $card->resolvedPrizeSystem();
+        if ($prizeSystem) {
+            $prizeSystem->loadMissing('milestones');
+        }
+        $milestoneCounts = array_flip($prizeSystem?->milestoneCounts() ?? []);
 
         $style = $program->stamp_style ?? 'minimal';
         $scale = max(0.5, min(1.5, (float) ($program->stamp_scale ?? 1.0)));
@@ -159,7 +162,7 @@ class StampImageService
         }
 
         // ── Progress strip ───────────────────────────────────────────────────
-        $nextMilestone = $program->milestones()->where('stamp_count', '>', $filled)->first();
+        $nextMilestone = $prizeSystem?->milestones()->where('stamp_count', '>', $filled)->first();
         $this->drawProgressStrip($canvas, $rW, $rH, $filled, $total, $ctx, $nextMilestone);
 
         // ── Downsample to output size ─────────────────────────────────────────

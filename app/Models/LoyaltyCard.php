@@ -14,6 +14,7 @@ class LoyaltyCard extends Model
 
     protected $fillable = [
         'loyalty_program_id',
+        'current_prize_system_id',
         'first_name',
         'last_name',
         'birth_date',
@@ -46,6 +47,19 @@ class LoyaltyCard extends Model
     {
         // withTrashed ensures soft-deleted programs still load on the card — avoids null crashes.
         return $this->belongsTo(LoyaltyProgram::class)->withTrashed();
+    }
+
+    public function currentPrizeSystem(): BelongsTo
+    {
+        return $this->belongsTo(LoyaltyPrizeSystem::class, 'current_prize_system_id');
+    }
+
+    public function resolvedPrizeSystem(): ?LoyaltyPrizeSystem
+    {
+        if ($this->current_prize_system_id) {
+            return $this->currentPrizeSystem;
+        }
+        return $this->loyaltyProgram?->prizeSystems()->first();
     }
 
     public function stampTransactions(): HasMany
@@ -96,7 +110,8 @@ class LoyaltyCard extends Model
             return '—';
         }
 
-        $next = $this->nextMilestone();
+        $next        = $this->nextMilestone();
+        $rewardTitle = $this->resolvedPrizeSystem()?->reward_title ?? '—';
 
         if ($next) {
             $remaining = $next->stamp_count - $this->stamps_collected;
@@ -112,7 +127,7 @@ class LoyaltyCard extends Model
         $remaining = $program->total_stamps - $this->stamps_collected;
 
         if ($remaining <= 0) {
-            return '¡Premio disponible: ' . $program->reward_title . '!';
+            return '¡Premio disponible: ' . $rewardTitle . '!';
         }
 
         return $remaining === 1
@@ -122,9 +137,8 @@ class LoyaltyCard extends Model
 
     public function nextMilestone(): ?LoyaltyMilestone
     {
-        return $this->loyaltyProgram?->milestones()
+        return $this->resolvedPrizeSystem()?->milestones()
             ->where('stamp_count', '>', $this->stamps_collected)
-            ->orderBy('stamp_count')
             ->first();
     }
 
@@ -136,12 +150,12 @@ class LoyaltyCard extends Model
             return '—';
         }
 
-        $icon       = $program->stampIconLabel();
-        $milestones = $program->milestoneCounts();
+        $icon             = $program->stampIconLabel();
+        $milestoneCounts  = $this->resolvedPrizeSystem()?->milestoneCounts() ?? [];
 
         $parts = [];
         for ($i = 1; $i <= $program->total_stamps; $i++) {
-            $isMilestone = in_array($i, $milestones, true);
+            $isMilestone = in_array($i, $milestoneCounts, true);
 
             if ($i <= $this->stamps_collected) {
                 $parts[] = $isMilestone ? '★' : $icon;

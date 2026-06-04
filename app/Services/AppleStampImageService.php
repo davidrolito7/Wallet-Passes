@@ -73,8 +73,11 @@ class AppleStampImageService
         $total    = $program->total_stamps;
         $filled   = min($card->stamps_collected, $total);
 
-        $program->loadMissing('milestones');
-        $milestoneCounts = array_flip($program->milestoneCounts());
+        $prizeSystem = $card->resolvedPrizeSystem();
+        if ($prizeSystem) {
+            $prizeSystem->loadMissing('milestones');
+        }
+        $milestoneCounts = array_flip($prizeSystem?->milestoneCounts() ?? []);
 
         $style = $program->stamp_style ?? 'minimal';
         $scale = max(0.5, min(1.5, (float) ($program->stamp_scale ?? 1.0)));

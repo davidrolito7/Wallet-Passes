@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class LoyaltyProgram extends Model
@@ -61,9 +62,19 @@ class LoyaltyProgram extends Model
         return $this->belongsTo(Business::class);
     }
 
-    public function milestones(): HasMany
+    public function prizeSystems(): HasMany
     {
-        return $this->hasMany(LoyaltyMilestone::class)->orderBy('stamp_count');
+        return $this->hasMany(LoyaltyPrizeSystem::class)->orderBy('sort_order');
+    }
+
+    public function milestones(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            LoyaltyMilestone::class,
+            LoyaltyPrizeSystem::class,
+            'loyalty_program_id',
+            'loyalty_prize_system_id',
+        )->orderBy('loyalty_milestones.stamp_count');
     }
 
     public function loyaltyCards(): HasMany

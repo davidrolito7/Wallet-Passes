@@ -29,7 +29,7 @@ class GoogleWalletService
             ->setIssuerName($business->name)
             ->setProgramName($program->name)
             ->setProgramLogoUrl($business->logoPublicUrl() ?? config('app.url').'/images/default-logo.png')
-            ->setRewardsTier($program->reward_title)
+            ->setRewardsTier($program->prizeSystems()->value('reward_title') ?? '—')
             ->setRewardsTierLabel('Premio')
             ->setAccountNameLabel('Miembro')
             ->setAccountIdLabel('Tarjeta')
@@ -291,7 +291,7 @@ class GoogleWalletService
 
         $modules[] = [
             'header' => 'Premio al Completar',
-            'body'   => $program->reward_title,
+            'body'   => $card->resolvedPrizeSystem()?->reward_title ?? '—',
             'id'     => 'final_reward',
         ];
 
@@ -392,15 +392,17 @@ class GoogleWalletService
      */
     private function resolveTemplate(string $template, LoyaltyCard $card): string
     {
-        $program  = $card->loyaltyProgram;
-        $business = $program->business;
+        $program     = $card->loyaltyProgram;
+        $business    = $program->business;
+        $prizeSystem = $card->resolvedPrizeSystem();
 
-        $next = $program->milestones()
+        $next = $prizeSystem?->milestones()
             ->where('stamp_count', '>', $card->stamps_collected)
-            ->orderBy('stamp_count')
             ->first();
 
         $remaining = max(0, ($next?->stamp_count ?? $program->total_stamps) - $card->stamps_collected);
+
+        $rewardTitle = $prizeSystem?->reward_title ?? '—';
 
         $vars = [
             '{first_name}'       => $card->first_name,
@@ -410,8 +412,8 @@ class GoogleWalletService
             '{remaining_stamps}' => $remaining,
             '{business_name}'    => $business->name,
             '{program_name}'     => $program->name,
-            '{next_reward}'      => $next?->reward_title ?? $program->reward_title,
-            '{reward_title}'     => $program->reward_title,
+            '{next_reward}'      => $next?->reward_title ?? $rewardTitle,
+            '{reward_title}'     => $rewardTitle,
         ];
 
         return str_replace(array_keys($vars), array_values($vars), $template);
@@ -419,11 +421,11 @@ class GoogleWalletService
 
     private function nextRewardText(LoyaltyCard $card): string
     {
-        $program = $card->loyaltyProgram;
+        $program     = $card->loyaltyProgram;
+        $prizeSystem = $card->resolvedPrizeSystem();
 
-        $next = $program->milestones()
+        $next = $prizeSystem?->milestones()
             ->where('stamp_count', '>', $card->stamps_collected)
-            ->orderBy('stamp_count')
             ->first();
 
         if ($next) {
@@ -433,13 +435,14 @@ class GoogleWalletService
                 : $next->reward_title.' — faltan '.$remaining.' '.($remaining === 1 ? 'visita' : 'visitas');
         }
 
-        $remaining = $program->total_stamps - $card->stamps_collected;
+        $rewardTitle = $prizeSystem?->reward_title ?? '—';
+        $remaining   = $program->total_stamps - $card->stamps_collected;
 
         if ($remaining <= 0) {
-            return '¡'.$program->reward_title.' disponible!';
+            return '¡'.$rewardTitle.' disponible!';
         }
 
-        return $program->reward_title.' — faltan '.$remaining.' '.($remaining === 1 ? 'visita' : 'visitas');
+        return $rewardTitle.' — faltan '.$remaining.' '.($remaining === 1 ? 'visita' : 'visitas');
     }
 
     private function balanceString(LoyaltyCard $card): string

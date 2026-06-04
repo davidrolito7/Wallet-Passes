@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Business;
 use App\Http\Controllers\Controller;
 use App\Models\LoyaltyMilestone;
 use App\Models\LoyaltyProgram;
+use App\Models\LoyaltyPrizeSystem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -75,10 +76,20 @@ class LoyaltyProgramController extends Controller
 
         $program->fill($data)->save();
 
+        // Keep first prize system in sync with the portal's reward_title
+        $prizeSystem = $program->prizeSystems()->firstOrCreate(
+            ['sort_order' => 1],
+            ['reward_title' => $data['reward_title'] ?? 'Premio', 'reward_description' => $data['reward_description'] ?? null],
+        );
+        $prizeSystem->update([
+            'reward_title'       => $data['reward_title'] ?? 'Premio',
+            'reward_description' => $data['reward_description'] ?? null,
+        ]);
+
         if (isset($data['milestones'])) {
-            $program->milestones()->delete();
+            $prizeSystem->milestones()->delete();
             foreach ($data['milestones'] as $milestone) {
-                $program->milestones()->create([
+                $prizeSystem->milestones()->create([
                     'stamp_count'        => $milestone['stamp_count'],
                     'reward_title'       => $milestone['reward_title'],
                     'reward_description' => $milestone['reward_description'] ?? null,

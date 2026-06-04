@@ -89,70 +89,78 @@ class LoyaltyProgramResource extends Resource
                 ->columns(1),
 
             // ─────────────────────────────────────────────────────────
-            // PREMIOS
+            // SISTEMAS DE PREMIOS
             // ─────────────────────────────────────────────────────────
-            Section::make('Sistema de Premios')
-                ->description('Premios intermedios y recompensa final.')
+            Section::make('Sistemas de Premios')
+                ->description('Configura uno o más sistemas. Al redimir el último, la tarjeta vuelve al primero.')
                 ->icon('heroicon-o-trophy')
                 ->collapsible()
                 ->schema([
 
-                    Repeater::make('milestones')
+                    Repeater::make('prizeSystems')
                         ->relationship()
-                        ->label('Premios Intermedios')
-                        ->collapsed()
-                        ->cloneable()
+                        ->label('')
+                        ->addActionLabel('Agregar Sistema de Premios')
                         ->reorderableWithButtons()
-                        ->addActionLabel('Agregar Premio')
+                        ->orderColumn('sort_order')
                         ->itemLabel(
                             fn(array $state): ?string =>
-                            filled($state['stamp_count'])
-                                ? "Visita #{$state['stamp_count']}"
-                                : 'Nuevo premio'
+                            filled($state['reward_title'])
+                                ? $state['reward_title']
+                                : 'Nuevo sistema'
                         )
                         ->schema([
 
-                            TextInput::make('stamp_count')
-                                ->label('Visita')
-                                ->numeric()
-                                ->minValue(1)
-                                ->required()
-                                ->prefix('#'),
+                            Repeater::make('milestones')
+                                ->relationship()
+                                ->label('Premios Intermedios')
+                                ->collapsed()
+                                ->cloneable()
+                                ->reorderableWithButtons()
+                                ->addActionLabel('Agregar Premio')
+                                ->itemLabel(
+                                    fn(array $state): ?string =>
+                                    filled($state['stamp_count'])
+                                        ? "Visita #{$state['stamp_count']}"
+                                        : 'Nuevo premio'
+                                )
+                                ->schema([
+
+                                    TextInput::make('stamp_count')
+                                        ->label('Visita')
+                                        ->numeric()
+                                        ->minValue(1)
+                                        ->required()
+                                        ->prefix('#'),
+
+                                    TextInput::make('reward_title')
+                                        ->label('Premio')
+                                        ->placeholder('Ej: Galleta gratis')
+                                        ->required(),
+
+                                    Textarea::make('reward_description')
+                                        ->label('Descripción')
+                                        ->rows(2),
+
+                                    Toggle::make('is_repeatable')
+                                        ->label('Repetible')
+                                        ->helperText('Se entrega en cada ciclo.')
+                                        ->inline(false),
+
+                                ])
+                                ->columns(1),
 
                             TextInput::make('reward_title')
-                                ->label('Premio')
-                                ->placeholder('Ej: Galleta gratis')
-                                ->required(),
-
-                            Textarea::make('reward_description')
-                                ->label('Descripción')
-                                ->rows(2),
-
-                            Toggle::make('is_repeatable')
-                                ->label('Repetible')
-                                ->helperText('Se entrega en cada ciclo.')
-                                ->inline(false),
-
-                        ])
-                        ->columns(1),
-
-                    Section::make('Premio Final')
-                        ->description('Recompensa principal al completar la tarjeta.')
-                        ->icon('heroicon-o-gift')
-                        ->collapsible()
-                        ->schema([
-
-                            TextInput::make('reward_title')
-                                ->label('Premio Principal')
+                                ->label('Premio Final')
                                 ->placeholder('Ej: Bebida gratis')
                                 ->required(),
 
                             Textarea::make('reward_description')
-                                ->label('Descripción')
+                                ->label('Descripción del Premio Final')
                                 ->rows(2),
 
                         ])
-                        ->columns(1)
+                        ->columns(1),
 
                 ])
                 ->columns(1),
@@ -287,15 +295,17 @@ class LoyaltyProgramResource extends Resource
                     ->sortable()
                     ->alignCenter(),
 
+                TextColumn::make('prize_systems_count')
+                    ->label('Sistemas')
+                    ->counts('prizeSystems')
+                    ->sortable()
+                    ->alignCenter(),
+
                 TextColumn::make('milestones_count')
                     ->label('Premios interm.')
                     ->counts('milestones')
                     ->sortable()
                     ->alignCenter(),
-
-                TextColumn::make('reward_title')
-                    ->label('Premio Final')
-                    ->limit(35),
 
                 TextColumn::make('loyaltyCards_count')
                     ->label('Tarjetas')
