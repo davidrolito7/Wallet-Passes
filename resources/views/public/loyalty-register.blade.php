@@ -136,12 +136,11 @@
                         @error('birth_date') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
 
-                    <button id="submit-btn"
-                        type="submit"
-                        class="w-full text-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                        style="background-color: {{ $business->primary_color ?? '#4f46e5' }}">
-                        Obtener mi tarjeta de lealtad
-                    </button>
+               <button id="submit-btn"
+    type="submit"
+    class="w-full bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed">
+    Obtener mi tarjeta de lealtad
+</button>
 
                     <p class="text-xs text-gray-400 text-center">
                         Tu información solo se usa para identificar tu tarjeta de lealtad.
@@ -159,7 +158,8 @@
         </p>
     </footer>
 
-    {{-- Spinner overlay (visible on submit, hidden once the response page loads) --}}
+    @unless(session('card_added'))
+    {{-- Overlay only exists while the form is active; removed from DOM on the success page --}}
     <div id="loading-overlay" role="status" aria-live="polite" aria-label="Cargando">
         <div class="flex flex-col items-center gap-5 text-white text-center px-6">
             <div class="spinner-ring"></div>
@@ -170,21 +170,24 @@
         </div>
     </div>
 
-    @unless(session('card_added'))
     <script>
         (function () {
             var overlay = document.getElementById('loading-overlay');
+            var form    = document.getElementById('register-form');
+            var btn     = document.getElementById('submit-btn');
 
-            document.getElementById('register-form').addEventListener('submit', function () {
-                document.getElementById('submit-btn').disabled = true;
+            form.addEventListener('submit', function () {
+                btn.disabled = true;
                 overlay.classList.add('active');
             });
 
-            // Hide overlay if the browser restores the page from bfcache (iOS Safari back/forward)
+            // When the browser restores this page from bfcache (back button after wallet redirect),
+            // reset the form and hide the spinner so the user gets a clean slate.
             window.addEventListener('pageshow', function (e) {
                 if (e.persisted) {
                     overlay.classList.remove('active');
-                    document.getElementById('submit-btn').disabled = false;
+                    btn.disabled = false;
+                    form.reset();
                 }
             });
         })();
