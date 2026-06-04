@@ -13,39 +13,62 @@
         }
 
         @keyframes pop-in {
-            0%   { transform: scale(0.5); opacity: 0; }
-            70%  { transform: scale(1.1); }
-            100% { transform: scale(1);   opacity: 1; }
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+
+            70% {
+                transform: scale(1.1);
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
         }
-        .pop-in { animation: pop-in 0.45s ease-out both; }
+
+        .pop-in {
+            animation: pop-in 0.45s ease-out both;
+        }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
+
         .spinner-ring {
-            width: 52px; height: 52px;
-            border: 4px solid rgba(255,255,255,0.25);
+            width: 52px;
+            height: 52px;
+            border: 4px solid rgba(255, 255, 255, 0.25);
             border-top-color: #fff;
             border-radius: 50%;
             animation: spin 0.85s linear infinite;
         }
+
         #loading-overlay {
             display: none;
-            position: fixed; inset: 0; z-index: 9999;
-            background: rgba(0,0,0,0.55);
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.55);
             backdrop-filter: blur(4px);
             -webkit-backdrop-filter: blur(4px);
             align-items: center;
             justify-content: center;
         }
-        #loading-overlay.active { display: flex; }
+
+        #loading-overlay.active {
+            display: flex;
+        }
     </style>
 </head>
 
 <body class="min-h-screen flex flex-col" style="background-color: {{ $business->primary_color ?? '#1a1a2e' }}">
 
-<main class="flex-1 flex items-start sm:items-center justify-center p-4 pt-6 sm:py-6">       
-     <div class="w-full max-w-md">
+    <main class="flex-1 flex items-start sm:items-center justify-center p-4 pt-6 sm:py-6">
+        <div class="w-full max-w-md">
 
             {{-- Header del negocio --}}
             <div class="text-center mb-6">
@@ -136,11 +159,11 @@
                         @error('birth_date') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
 
-               <button id="submit-btn"
-    type="submit"
-    class="w-full bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed">
-    Obtener mi tarjeta de lealtad
-</button>
+                    <button id="submit-btn"
+                        type="submit"
+                        class="w-full bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                        Obtener mi tarjeta de lealtad
+                    </button>
 
                     <p class="text-xs text-gray-400 text-center">
                         Tu información solo se usa para identificar tu tarjeta de lealtad.
@@ -152,8 +175,8 @@
         </div>
     </main>
 
-<footer class="pb-2 text-center">
-            <p class="text-xs text-white/30">
+    <footer class="pb-2 text-center">
+        <p class="text-xs text-white/30">
             Desarrollado por <span class="font-semibold text-white/50">Fidelight</span> · © {{ date('Y') }}
         </p>
     </footer>
@@ -171,19 +194,19 @@
     </div>
 
     <script>
-        (function () {
+        (function() {
             var overlay = document.getElementById('loading-overlay');
-            var form    = document.getElementById('register-form');
-            var btn     = document.getElementById('submit-btn');
+            var form = document.getElementById('register-form');
+            var btn = document.getElementById('submit-btn');
 
-            form.addEventListener('submit', function () {
+            form.addEventListener('submit', function() {
                 btn.disabled = true;
                 overlay.classList.add('active');
             });
 
             // When the browser restores this page from bfcache (back button after wallet redirect),
             // reset the form and hide the spinner so the user gets a clean slate.
-            window.addEventListener('pageshow', function (e) {
+            window.addEventListener('pageshow', function(e) {
                 if (e.persisted) {
                     overlay.classList.remove('active');
                     btn.disabled = false;
