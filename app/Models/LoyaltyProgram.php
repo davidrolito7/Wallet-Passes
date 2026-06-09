@@ -46,6 +46,9 @@ class LoyaltyProgram extends Model
         'visit_notification_title',
         'visit_notification_message',
         'google_wallet_notification_mode',
+        'birthday_reward_enabled',
+        'birthday_reward_title',
+        'birthday_reward_description',
     ];
 
     protected function casts(): array
@@ -54,6 +57,7 @@ class LoyaltyProgram extends Model
             'is_active'                   => 'boolean',
             'total_stamps'                => 'integer',
             'visit_notification_enabled'  => 'boolean',
+            'birthday_reward_enabled'     => 'boolean',
         ];
     }
 

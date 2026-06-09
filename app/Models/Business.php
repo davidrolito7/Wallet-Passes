@@ -30,6 +30,7 @@ class Business extends Authenticatable
         'login_email',
         'password',
         'contact_phone',
+        'instagram_url',
         'website',
         'is_active',
     ];

@@ -175,7 +175,7 @@ class LoyaltyService
     /**
      * Send a one-off message to all wallet passes (Google Wallet + Apple Wallet).
      *
-     * Google: addmessage endpoint → notificación push en Android.
+     * Google: addMessage endpoint → notificación push en Android.
      * Apple:  actualiza el campo back 'wallet_msg' con changeMessage '%@' → push en iPhone.
      *         Si $notify es false, Apple se omite (no hay actualización silenciosa disponible).
      */

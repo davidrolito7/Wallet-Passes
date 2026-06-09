@@ -47,12 +47,13 @@ class AppleWalletService
             // Auxiliary: próximo premio
             ->addAuxiliaryField('next_reward', $this->nextRewardText($card), label: 'Próximo Premio')
             // Reverso de la tarjeta
-            ->addBackField('program_name', $program->name, label: 'Programa')
-            ->addBackField('total_stamps', $program->total_stamps . ' visitas para completar', label: 'Meta')
-            ->addBackField('reward', $card->resolvedPrizeSystem()?->reward_title ?? '—', label: 'Premio Final')
+            ->addBackField('program_name', filled($program->description) ? $program->description : $program->name, label: 'Términos')
+            ->addBackField('prizes_list', $this->prizesListText($card), label: 'Premios')
+            ->addBackField('contact', $this->contactText($card), label: 'Contacto')
             // wallet_msg: campo portador de notificaciones. Su valor es la última notificación
             // enviada. changeMessage '%@' hace que Apple muestre el valor como texto del push.
             ->addBackField('wallet_msg', '', label: 'Aviso')
+            ->addBackField('dev_footer', 'Alebrije Tech', label: 'Desarrollado por')
             ->setBarcode(BarcodeType::Qr, $barcodeValue);
 
         if ($hasStickers) {
@@ -133,8 +134,9 @@ class AppleWalletService
             }
         }
 
-        // Actualizar next_reward con el premio real (SIN changeMessage — no genera notificación).
+        // Actualizar next_reward y la lista de premios con el estado actual.
         $builder->updateField('next_reward', $this->nextRewardText($card));
+        $builder->updateField('prizes_list', $this->prizesListText($card));
 
         // wallet_msg: portador de la notificación push.
         // Apple requiere '%@' en changeMessage. Al poner '%@' el texto de la notificación
@@ -274,6 +276,33 @@ class AppleWalletService
         }
 
         return false;
+    }
+
+    private function prizesListText(LoyaltyCard $card): string
+    {
+        $program     = $card->loyaltyProgram;
+        $prizeSystem = $card->resolvedPrizeSystem();
+        $lines       = [];
+
+        foreach ($prizeSystem?->milestones ?? collect() as $m) {
+            $lines[] = 'Visita ' . $m->stamp_count . ': ' . $m->reward_title;
+        }
+
+        $lines[] = 'Visita ' . $program->total_stamps . ': ' . ($prizeSystem?->reward_title ?? '—') . ' ★';
+
+        return implode("\n", $lines);
+    }
+
+    private function contactText(LoyaltyCard $card): string
+    {
+        $business = $card->loyaltyProgram->business;
+        $parts    = array_filter([
+            $business->name,
+            $business->contact_phone,
+            $business->instagram_url,
+        ]);
+
+        return implode("\n", $parts);
     }
 
     /**

@@ -166,6 +166,37 @@ class LoyaltyProgramResource extends Resource
                 ->columns(1),
 
             // ─────────────────────────────────────────────────────────
+            // PREMIO DE CUMPLEAÑOS
+            // ─────────────────────────────────────────────────────────
+            Section::make('Premio de Cumpleaños')
+                ->description('Configura el regalo especial que recibe el cliente el día de su cumpleaños.')
+                ->icon('heroicon-o-cake')
+                ->collapsible()
+                ->collapsed()
+                ->schema([
+
+                    Toggle::make('birthday_reward_enabled')
+                        ->label('Activar Premio de Cumpleaños')
+                        ->helperText('Cuando esté activo, el cliente verá su premio en la tarjeta el día de su cumpleaños.')
+                        ->inline(false)
+                        ->live(),
+
+                    TextInput::make('birthday_reward_title')
+                        ->label('Premio')
+                        ->placeholder('Ej: Bebida gratis en tu cumpleaños')
+                        ->maxLength(255)
+                        ->visible(fn (Get $get) => (bool) $get('birthday_reward_enabled')),
+
+                    Textarea::make('birthday_reward_description')
+                        ->label('Descripción')
+                        ->placeholder('Ej: Presenta esta tarjeta el día de tu cumpleaños y recibe una bebida de tu elección completamente gratis.')
+                        ->rows(3)
+                        ->visible(fn (Get $get) => (bool) $get('birthday_reward_enabled')),
+
+                ])
+                ->columns(1),
+
+            // ─────────────────────────────────────────────────────────
             // IMÁGENES PARA WALLET
             // ─────────────────────────────────────────────────────────
             Section::make('Imágenes para Wallet')

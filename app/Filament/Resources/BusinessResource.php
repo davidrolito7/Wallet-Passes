@@ -103,6 +103,12 @@ class BusinessResource extends Resource
                     ->label('Teléfono')
                     ->tel()
                     ->maxLength(50),
+
+                TextInput::make('instagram_url')
+                    ->label('Instagram')
+                    ->url()
+                    ->placeholder('https://instagram.com/tu_negocio')
+                    ->maxLength(255),
             ])->columns(3),
         ]);
     }
