@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Business\AuthController;
+use App\Http\Controllers\Business\BusinessProfileController;
 use App\Http\Controllers\Business\CustomersController;
 use App\Http\Controllers\Business\DashboardController;
 use App\Http\Controllers\Business\LoyaltyProgramController;
@@ -20,6 +21,7 @@ Route::prefix('business')->name('business.')->group(function () {
 
         Route::get('/loyalty-program', [LoyaltyProgramController::class, 'index'])->name('loyalty-program');
         Route::post('/loyalty-program', [LoyaltyProgramController::class, 'store'])->name('loyalty-program.save');
+        Route::post('/profile', [BusinessProfileController::class, 'update'])->name('profile.save');
 
         Route::get('/customers', [CustomersController::class, 'index'])->name('customers');
 

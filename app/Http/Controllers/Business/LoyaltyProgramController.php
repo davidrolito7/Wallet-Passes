@@ -47,6 +47,12 @@ class LoyaltyProgramController extends Controller
             'visit_notification_title'          => ['nullable', 'string', 'max:100'],
             'visit_notification_message'        => ['nullable', 'string', 'max:500'],
             'google_wallet_notification_mode'   => ['nullable', 'in:balance_update_only,custom_message_only,both'],
+            // Premio de cumpleaños
+            'birthday_reward_enabled'           => ['boolean'],
+            'birthday_reward_title'             => ['nullable', 'string', 'max:255'],
+            'birthday_reward_description'       => ['nullable', 'string'],
+            // Google Wallet
+            'google_class_suffix'               => ['nullable', 'string', 'max:255'],
         ]);
 
         $program = LoyaltyProgram::firstOrNew(['business_id' => $business->id]);
@@ -65,7 +71,8 @@ class LoyaltyProgramController extends Controller
         $data['business_id'] = $business->id;
         $data['is_active']   = $request->boolean('is_active', true);
 
-        $data['visit_notification_enabled'] = $request->boolean('visit_notification_enabled');
+        $data['visit_notification_enabled']  = $request->boolean('visit_notification_enabled');
+        $data['birthday_reward_enabled']     = $request->boolean('birthday_reward_enabled');
 
         // Si no hay mensaje personalizado activo, forzar modo base para no enviar addMessage vacío.
         if (! $data['visit_notification_enabled']) {

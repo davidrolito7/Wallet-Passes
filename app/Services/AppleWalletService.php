@@ -49,12 +49,19 @@ class AppleWalletService
             // Reverso de la tarjeta
             ->addBackField('program_name', filled($program->description) ? $program->description : $program->name, label: 'Términos')
             ->addBackField('prizes_list', $this->prizesListText($card), label: 'Premios')
+            ->withBackFieldRight('prizes_list')
             ->addBackField('contact', $this->contactText($card), label: 'Contacto')
             // wallet_msg: campo portador de notificaciones. Su valor es la última notificación
             // enviada. changeMessage '%@' hace que Apple muestre el valor como texto del push.
             ->addBackField('wallet_msg', '', label: 'Aviso')
             ->addBackField('dev_footer', 'Alebrije Tech', label: 'Desarrollado por')
+            ->withBackFieldAttributedValue('dev_footer', "<a href='https://alebrijetech.com'>Alebrije Tech</a>")
             ->setBarcode(BarcodeType::Qr, $barcodeValue);
+
+        $contactAttr = $this->contactAttributedValue($card);
+        if ($contactAttr) {
+            $builder->withBackFieldAttributedValue('contact', $contactAttr);
+        }
 
         if ($hasStickers) {
             $builder->addSecondaryField('card_id', 'Vista ' . $card->stamps_collected . '/' . $program->total_stamps, label: 'Visitas');
@@ -297,9 +304,24 @@ class AppleWalletService
     {
         $business = $card->loyaltyProgram->business;
         $parts    = array_filter([
-            $business->name,
             $business->contact_phone,
-            $business->instagram_url,
+            filled($business->instagram_url) ? 'Síguenos en Instagram' : null,
+        ]);
+
+        return implode("\n", $parts);
+    }
+
+    private function contactAttributedValue(LoyaltyCard $card): ?string
+    {
+        $business = $card->loyaltyProgram->business;
+
+        if (! filled($business->instagram_url)) {
+            return null;
+        }
+
+        $parts = array_filter([
+            $business->contact_phone,
+            "<a href='" . e($business->instagram_url) . "'>Síguenos en Instagram</a>",
         ]);
 
         return implode("\n", $parts);
