@@ -9,6 +9,13 @@ use Illuminate\Support\Facades\Storage;
 
 class BusinessProfileController extends Controller
 {
+    public function show()
+    {
+        $business = Auth::guard('business')->user();
+
+        return view('business.profile.index', compact('business'));
+    }
+
     public function update(Request $request)
     {
         $business = Auth::guard('business')->user();
@@ -34,6 +41,6 @@ class BusinessProfileController extends Controller
 
         $business->fill($data)->save();
 
-        return redirect()->route('business.loyalty-program')->with('success', 'Información del negocio actualizada.');
+        return redirect()->route('business.profile')->with('success', 'Información del negocio actualizada.');
     }
 }
