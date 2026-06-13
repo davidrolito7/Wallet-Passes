@@ -84,7 +84,8 @@
 
 @push('scripts')
 <script>
-if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && !sessionStorage.getItem('scanner_redirected')) {
+    sessionStorage.setItem('scanner_redirected', '1');
     window.location.replace('{{ route("business.scanner") }}');
 }
 </script>
