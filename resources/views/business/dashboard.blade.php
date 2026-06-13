@@ -81,3 +81,11 @@
     @endif
 </div>
 @endsection
+
+@push('scripts')
+<script>
+if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    window.location.replace('{{ route("business.scanner") }}');
+}
+</script>
+@endpush

@@ -19,7 +19,7 @@
     {{-- Escáner --}}
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {{-- Viewfinder --}}
-        <div class="relative bg-gray-900" style="min-height: 320px;">
+        <div class="relative bg-gray-900" style="min-height: 460px;">
             <div id="reader" class="w-full"></div>
 
             {{-- Overlay de esquinas --}}
@@ -42,19 +42,6 @@
             </div>
         </div>
 
-        {{-- Controles --}}
-        <div class="p-4 flex items-center justify-between gap-3 border-t border-gray-100">
-            <p id="scan-status" class="text-sm text-gray-500">Presiona iniciar para abrir la cámara</p>
-            <button id="btn-toggle"
-                    onclick="toggleScanner()"
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-lg text-sm transition-colors flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-                Iniciar
-            </button>
-        </div>
     </div>
 
 </div>
@@ -90,7 +77,7 @@
     #reader__status_span,
     #reader__dashboard_section_csr,
     #reader__dashboard { display: none !important; }
-    #reader video { width: 100% !important; height: 320px !important; object-fit: cover; }
+    #reader video { width: 100% !important; height: 460px !important; object-fit: cover; }
 </style>
 @endpush
 
@@ -105,14 +92,6 @@ let isRunning   = false;
 let isProcessing = false;
 
 // ── Scanner ───────────────────────────────────────────────────────────────────
-
-function toggleScanner() {
-    if (isRunning) {
-        stopScanner();
-    } else {
-        startScanner();
-    }
-}
 
 function startScanner() {
     if (scanner) {
@@ -133,18 +112,12 @@ function startScanner() {
         { facingMode: 'environment' },
         config,
         onScanSuccess,
-        () => {} // errores silenciados
+        () => {}
     ).then(() => {
         isRunning = true;
         document.getElementById('cam-off').classList.add('hidden');
         document.getElementById('scan-overlay').classList.remove('hidden');
-        document.getElementById('scan-status').textContent = 'Buscando código QR...';
-        const btn = document.getElementById('btn-toggle');
-        btn.textContent = 'Detener';
-        btn.classList.replace('bg-indigo-600', 'bg-gray-600');
-        btn.classList.replace('hover:bg-indigo-700', 'hover:bg-gray-700');
     }).catch(err => {
-        document.getElementById('scan-status').textContent = 'No se pudo acceder a la cámara. Verifica los permisos.';
         console.error('Camera error:', err);
     });
 }
@@ -154,14 +127,11 @@ function stopScanner() {
         scanner.stop().then(() => {
             isRunning = false;
             document.getElementById('cam-off').classList.remove('hidden');
-            document.getElementById('scan-status').textContent = 'Cámara detenida';
-            const btn = document.getElementById('btn-toggle');
-            btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg> Iniciar`;
-            btn.classList.replace('bg-gray-600', 'bg-indigo-600');
-            btn.classList.replace('hover:bg-gray-700', 'hover:bg-indigo-700');
         });
     }
 }
+
+document.addEventListener('DOMContentLoaded', startScanner);
 
 // ── Procesamiento del QR ─────────────────────────────────────────────────────
 
