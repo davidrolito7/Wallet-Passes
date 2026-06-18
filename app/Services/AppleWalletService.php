@@ -146,10 +146,12 @@ class AppleWalletService
         $builder->updateField('prizes_list', $this->prizesListText($card));
 
         // wallet_msg: portador de la notificación push.
-        // Apple requiere '%@' en changeMessage. Al poner '%@' el texto de la notificación
-        // es el VALOR del campo (wallet_msg). Así el mensaje no toca next_reward.
+        // Apple solo dispara changeMessage cuando el VALUE del campo cambia entre versiones.
+        // Usar el texto como value hace que visitas consecutivas con el mismo mensaje no disparen
+        // notificación. Solución (per Apple PassFieldContent docs): value = contador que siempre
+        // cambia (stamps_collected); changeMessage = texto real de la notificación sin %@.
         $notifText = $this->resolveVisitMessage($card);
-        $builder->addBackField('wallet_msg', $notifText, label: 'Aviso', changeMessage: '%@');
+        $builder->addBackField('wallet_msg', (string) $card->stamps_collected, label: 'Aviso', changeMessage: $notifText);
 
         // Un solo save → un solo push APNS con el mensaje correcto.
         $builder->save();
@@ -179,9 +181,11 @@ class AppleWalletService
         }
 
         // addBackField agrega wallet_msg si no existe (pases anteriores) o lo actualiza si ya existe.
-        // changeMessage: '%@' → la notificación muestra el valor del campo = $message.
+        // Apple solo dispara la notificación si el VALUE cambia. Usar microtime como value
+        // garantiza que siempre haya un cambio, incluso si el mismo mensaje se envía dos veces.
+        // changeMessage = texto del mensaje (sin %@ para no exponer el microtime en la notif).
         $pass->builder()
-            ->addBackField('wallet_msg', $message, label: 'Aviso', changeMessage: '%@')
+            ->addBackField('wallet_msg', (string) microtime(true), label: 'Aviso', changeMessage: $message)
             ->save();
     }
 
