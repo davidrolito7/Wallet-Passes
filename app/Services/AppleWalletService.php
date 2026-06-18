@@ -146,12 +146,13 @@ class AppleWalletService
         $builder->updateField('prizes_list', $this->prizesListText($card));
 
         // wallet_msg: portador de la notificación push.
-        // Apple solo dispara changeMessage cuando el VALUE del campo cambia entre versiones.
-        // Usar el texto como value hace que visitas consecutivas con el mismo mensaje no disparen
-        // notificación. Solución (per Apple PassFieldContent docs): value = contador que siempre
-        // cambia (stamps_collected); changeMessage = texto real de la notificación sin %@.
-        $notifText = $this->resolveVisitMessage($card);
-        $builder->addBackField('wallet_msg', (string) $card->stamps_collected, label: 'Aviso', changeMessage: $notifText);
+        // Apple PassFieldContent docs: %@ es OBLIGATORIO en changeMessage para que Apple muestre
+        // el texto personalizado; sin él muestra el genérico localizado ("La tarjeta de tienda cambió").
+        // El value debe cambiar entre versiones para disparar la alerta.
+        // Solución: value = texto + "\n" + contador de sellos (siempre único, informativo, %@ lo muestra).
+        $notifText  = $this->resolveVisitMessage($card);
+        $fieldValue = $notifText . "\n" . $card->stamps_collected . '/' . $program->total_stamps . ' sellos';
+        $builder->addBackField('wallet_msg', $fieldValue, label: 'Aviso', changeMessage: '%@');
 
         // Un solo save → un solo push APNS con el mensaje correcto.
         $builder->save();
@@ -181,11 +182,10 @@ class AppleWalletService
         }
 
         // addBackField agrega wallet_msg si no existe (pases anteriores) o lo actualiza si ya existe.
-        // Apple solo dispara la notificación si el VALUE cambia. Usar microtime como value
-        // garantiza que siempre haya un cambio, incluso si el mismo mensaje se envía dos veces.
-        // changeMessage = texto del mensaje (sin %@ para no exponer el microtime en la notif).
+        // %@ es obligatorio en changeMessage (Apple lo exige para mostrar texto personalizado).
+        // Añadimos la hora al value para garantizar que siempre sea distinto aunque el mensaje se repita.
         $pass->builder()
-            ->addBackField('wallet_msg', (string) microtime(true), label: 'Aviso', changeMessage: $message)
+            ->addBackField('wallet_msg', $message . "\n" . now()->format('d/m H:i'), label: 'Aviso', changeMessage: '%@')
             ->save();
     }
 
