@@ -39,7 +39,7 @@ class AppleWalletService
             ->setBackgroundColor($business->primary_color)
             ->setForegroundColor($business->secondary_color)
             ->setLabelColor($business->label_color)
-            ->setIconImage(...$this->iconPaths())
+            ->setIconImage(...$this->iconPathsForBusiness($card))
             // Header: nombre del programa / año de membresía
             ->addHeaderField('member_since', 'Desde ' . $card->created_at->format('m/y'), label: $business->name)
             // Secondary: miembro + contador de visitas solo cuando hay stickers
@@ -368,6 +368,85 @@ class AppleWalletService
         }
 
         return null;
+    }
+
+    /**
+     * Genera iconos per-negocio (29/58/87 px) con el logo centrado sobre el color primario.
+     * Se cachean por hash del logo + color para evitar regenerar en cada llamada.
+     * Cae de vuelta al icono negro genérico si no hay logo disponible.
+     */
+    private function iconPathsForBusiness(LoyaltyCard $card): array
+    {
+        $business = $card->loyaltyProgram->business;
+        $logoPath = $this->fetchLogoPath($business->logoPublicUrl());
+
+        if (! $logoPath || ! file_exists($logoPath)) {
+            return $this->iconPaths();
+        }
+
+        $dir = storage_path('app/apple-pass/icons');
+        is_dir($dir) || mkdir($dir, 0755, true);
+
+        $mtime    = (string) (@filemtime($logoPath) ?: 0);
+        $cacheKey = md5($logoPath . '@' . $mtime . '@' . ($business->primary_color ?? ''));
+
+        $icons = [
+            29 => $dir . '/icon_' . $cacheKey . '.png',
+            58 => $dir . '/icon_' . $cacheKey . '@2x.png',
+            87 => $dir . '/icon_' . $cacheKey . '@3x.png',
+        ];
+
+        if (! file_exists($icons[29])) {
+            $raw = @file_get_contents($logoPath);
+            $src = $raw !== false ? @imagecreatefromstring($raw) : false;
+
+            if (! $src) {
+                return $this->iconPaths();
+            }
+
+            [$r, $g, $b] = $this->hexToRgb($business->primary_color ?? '#1e1e1e');
+
+            $srcW = imagesx($src);
+            $srcH = imagesy($src);
+
+            foreach ($icons as $size => $path) {
+                $canvas = imagecreatetruecolor($size, $size);
+                $bg     = imagecolorallocate($canvas, $r, $g, $b);
+                imagefilledrectangle($canvas, 0, 0, $size, $size, $bg);
+
+                // Logo centrado con 10% de padding, manteniendo proporción
+                $pad     = (int) round($size * 0.10);
+                $maxDim  = $size - $pad * 2;
+                $ratio   = min($maxDim / $srcW, $maxDim / $srcH);
+                $newW    = (int) round($srcW * $ratio);
+                $newH    = (int) round($srcH * $ratio);
+                $offsetX = (int) round(($size - $newW) / 2);
+                $offsetY = (int) round(($size - $newH) / 2);
+
+                imagealphablending($canvas, true);
+                imagecopyresampled($canvas, $src, $offsetX, $offsetY, 0, 0, $newW, $newH, $srcW, $srcH);
+                imagepng($canvas, $path);
+                imagedestroy($canvas);
+            }
+
+            imagedestroy($src);
+        }
+
+        return array_values($icons);
+    }
+
+    private function hexToRgb(string $hex): array
+    {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) === 3) {
+            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        }
+
+        return [
+            (int) hexdec(substr($hex, 0, 2)),
+            (int) hexdec(substr($hex, 2, 2)),
+            (int) hexdec(substr($hex, 4, 2)),
+        ];
     }
 
     /**
