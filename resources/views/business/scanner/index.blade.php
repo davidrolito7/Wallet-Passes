@@ -140,7 +140,6 @@ async function onScanSuccess(decodedText) {
     isProcessing = true;
 
     stopScanner();
-    document.getElementById('scan-status').textContent = 'Procesando...';
 
     try {
         const response = await fetch(SCAN_URL, {
