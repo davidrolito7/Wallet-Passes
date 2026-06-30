@@ -7,6 +7,7 @@ use App\Models\LoyaltyProgram;
 use App\Services\StampImageService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Spatie\LaravelMobilePass\Builders\Google\LoyaltyPassBuilder;
 use Spatie\LaravelMobilePass\Builders\Google\LoyaltyPassClass;
 use Spatie\LaravelMobilePass\Enums\BarcodeType;
@@ -16,7 +17,14 @@ use Spatie\LaravelMobilePass\Support\Google\GoogleWalletClient;
 
 class GoogleWalletService
 {
-    private const MAX_PUSH_NOTIFICATIONS_PER_DAY = 5;
+    /**
+     * Google Wallet allows a maximum of 3 notification-triggering messages
+     * per pass within a 24-hour period. Keep the local guard aligned with Google.
+     */
+    private const MAX_PUSH_NOTIFICATIONS_PER_DAY = 3;
+
+    private const WALLET_API_BASE_URL = 'https://walletobjects.googleapis.com/walletobjects/v1';
+    private const FIELD_UPDATE_NOTIFY_PREFERENCE = 'notifyOnUpdate';
 
     public function __construct(
         private GoogleWalletClient $client,
@@ -82,12 +90,16 @@ class GoogleWalletService
     /**
      * Update the Google Wallet LoyaltyObject for a card after a stamp change.
      *
-     * Notification strategy (controlled by program.google_wallet_notification_mode):
-     *   balance_update_only  — PATCH with notifyPreference:"notifyOnUpdate", no addMessage.
-     *   custom_message_only  — PATCH without notifyPreference, addMessage TEXT_AND_NOTIFY.
-     *   both                 — PATCH with notifyPreference AND addMessage (two notifications).
+     * Google Wallet has two different notification mechanisms:
+     *   balance_update_only — PATCH loyaltyPoints.balance with notifyPreference.
+     *   custom_message_only — PATCH the object, then AddMessage TEXT_AND_NOTIFY.
+     *   both                — avoid double notifications by preferring AddMessage when a
+     *                          custom visit message exists; otherwise fallback to notifyPreference.
      *
-     * @param  bool  $notify           Add notifyPreference to PATCH when strategy allows it.
+     * The PATCH body is intentionally small. Google PATCH requests replace arrays that are
+     * included in the request, so only send the fields that this service owns.
+     *
+     * @param  bool  $notify           Whether this update may trigger a Google Wallet notification.
      * @param  bool  $sendVisitMessage Send the program's configured per-visit message.
      */
     public function updatePass(LoyaltyCard $card, bool $notify = true, bool $sendVisitMessage = true): void
@@ -114,43 +126,48 @@ class GoogleWalletService
             return;
         }
 
-        // Build the updated payload and persist to DB without triggering the Spatie auto-PATCH.
         $content = $pass->content;
         $payload = $this->buildPayload($content['googleObjectPayload'], $card);
         $content['googleObjectPayload'] = $payload;
 
         MobilePass::withoutEvents(fn () => $pass->update(['content' => $content]));
 
-        // Determine notification strategy.
-        $program         = $card->loyaltyProgram;
-        $mode            = $program->google_wallet_notification_mode ?? 'balance_update_only';
+        $program = $card->loyaltyProgram;
+        $mode = $program->google_wallet_notification_mode ?? 'custom_message_only';
+
         $hasCustomMessage = $sendVisitMessage
             && ($program->visit_notification_enabled ?? false)
             && filled($program->visit_notification_message);
 
-        // Only include notifyPreference when the strategy calls for a balance-update notification.
-        $includeNotify = $notify && match ($mode) {
-            'custom_message_only' => ! $hasCustomMessage,   // fallback a balance-update si no hay mensaje configurado
-            'balance_update_only' => true,
-            'both'                => true,
-            default               => ! $hasCustomMessage,
-        };
+        // Do not send two Google Wallet notifications for the same visit unless you
+        // intentionally change this logic. AddMessage is the only flow that shows your text.
+        $shouldSendMessage = $notify
+            && $hasCustomMessage
+            && in_array($mode, ['custom_message_only', 'both'], true);
 
-        $patchPayload = $payload;
-        if ($includeNotify) {
-            // notifyPreference is added only for this PATCH call; it is never persisted to DB.
-            $patchPayload['notifyPreference'] = 'notifyOnUpdate';
+        // Fallback to the field-update notification when there is no custom message flow.
+        $includeNotifyPreference = $notify && ! $shouldSendMessage && in_array($mode, [
+            'balance_update_only',
+            'both',
+            'custom_message_only', // fallback when the custom message is not configured
+        ], true);
+
+        $patchPayload = $this->patchPayloadForUpdate($payload);
+
+        if ($includeNotifyPreference) {
+            // Transient field. Do not persist it to DB; set it on every PATCH that should notify.
+            $patchPayload['notifyPreference'] = self::FIELD_UPDATE_NOTIFY_PREFERENCE;
         }
 
         try {
             $this->client->patchObject('loyaltyObject', $objectId, $patchPayload);
 
             Log::info('GoogleWallet: PATCH successful', [
-                'object_id'          => $objectId,
-                'card_id'            => $card->id,
-                'balance'            => $payload['loyaltyPoints']['balance']['string'] ?? null,
-                'notify_preference'  => $includeNotify ? 'notifyOnUpdate' : 'none',
-                'notification_mode'  => $mode,
+                'object_id'         => $objectId,
+                'card_id'           => $card->id,
+                'balance'           => $payload['loyaltyPoints']['balance']['string'] ?? null,
+                'notifyPreference'  => $includeNotifyPreference ? self::FIELD_UPDATE_NOTIFY_PREFERENCE : 'none',
+                'notification_mode' => $mode,
             ]);
         } catch (\Throwable $e) {
             Log::error('GoogleWallet: PATCH failed', [
@@ -161,8 +178,6 @@ class GoogleWalletService
             return;
         }
 
-        // Send the per-visit custom message if the mode and configuration call for it.
-        $shouldSendMessage = $hasCustomMessage && in_array($mode, ['custom_message_only', 'both'], true);
         if ($shouldSendMessage) {
             $this->sendVisitNotificationMessage($card);
         }
@@ -193,7 +208,7 @@ class GoogleWalletService
             : 'Llevas {stamps_collected}/{total_stamps} visitas.';
 
         $message   = $this->resolveTemplate($rawMessage, $card);
-        $messageId = 'visit-'.$card->id.'-'.$card->stamps_collected.'-'.time();
+        $messageId = 'visit-'.$card->id.'-'.$card->stamps_collected.'-'.Str::uuid()->toString();
         $header    = $program->business->name ?? $program->name;
 
         Log::info('GoogleWallet: sending visit notification message', [
@@ -211,10 +226,12 @@ class GoogleWalletService
      * Use this for birthday greetings, promotions, manual alerts, etc.
      * Does NOT modify the stamp count or balance.
      *
-     * @param  bool  $notify  true → TEXT_AND_NOTIFY (push); false → TEXT (silent).
+     * @param  bool  $notify  true → TEXT_AND_NOTIFY (push); false → TEXT (silent message on pass details).
      */
     public function sendMessage(LoyaltyCard $card, string $message, bool $notify = true, string $header = ''): void
     {
+        $card->loadMissing('loyaltyProgram.business');
+
         $pass = $card->googlePass();
 
         if (! $pass) {
@@ -232,10 +249,10 @@ class GoogleWalletService
             return;
         }
 
-        $messageId     = 'msg-'.$card->id.'-'.time();
+        $messageId = 'msg-'.$card->id.'-'.Str::uuid()->toString();
         $resolvedHeader = filled($header)
             ? $header
-            : ($card->loyaltyProgram->business->name ?? $card->loyaltyProgram->name ?? '');
+            : ($card->loyaltyProgram->business->name ?? $card->loyaltyProgram->name ?? config('app.name'));
 
         Log::info('GoogleWallet: sending manual message', [
             'object_id'  => $objectId,
@@ -254,7 +271,7 @@ class GoogleWalletService
     {
         $program = $card->loyaltyProgram;
 
-        // Always reflect the current stamp count in loyaltyPoints.balance.
+        // This is the only LoyaltyObject field that can trigger a field-update notification.
         $payload['loyaltyPoints']['balance']['string'] = $this->balanceString($card);
 
         // Hero image: stamp grid when assets are configured, otherwise static background.
@@ -266,7 +283,7 @@ class GoogleWalletService
 
         if ($heroUrl) {
             $payload['heroImage'] = [
-                'sourceUri'          => ['uri' => $heroUrl],
+                'sourceUri'          => ['uri' => $this->versionedImageUrl($heroUrl, $card)],
                 'contentDescription' => [
                     'defaultValue' => ['language' => 'es', 'value' => $program->name],
                 ],
@@ -276,6 +293,40 @@ class GoogleWalletService
         $payload['textModulesData'] = $this->textModules($card);
 
         return $payload;
+    }
+
+    /**
+     * PATCH only the fields owned by this service. Google replaces array fields that are included
+     * in a PATCH body, so avoid sending an old full object snapshot.
+     */
+    private function patchPayloadForUpdate(array $payload): array
+    {
+        return array_filter([
+            'loyaltyPoints'   => $payload['loyaltyPoints'] ?? null,
+            'heroImage'       => $payload['heroImage'] ?? null,
+            'textModulesData' => $payload['textModulesData'] ?? null,
+        ], static fn ($value) => $value !== null);
+    }
+
+    /**
+     * Google Wallet images are referenced by URI. When the stamp-grid image is regenerated at the
+     * same public URL, Wallet may keep showing the cached image until the pass is reopened. Add a
+     * stable version query string for public URLs so each stamp update points to a fresh image URI.
+     */
+    private function versionedImageUrl(string $url, LoyaltyCard $card): string
+    {
+        // Do not alter signed URLs: appending a query string can invalidate the signature.
+        if (str_contains($url, 'X-Amz-Signature') || str_contains($url, 'X-Goog-Signature')) {
+            return $url;
+        }
+
+        $version = implode('-', array_filter([
+            'card'.$card->id,
+            'stamps'.$card->stamps_collected,
+            $card->updated_at?->timestamp,
+        ]));
+
+        return $url.(str_contains($url, '?') ? '&' : '?').'gwv='.rawurlencode($version ?: (string) time());
     }
 
     private function textModules(LoyaltyCard $card): array
@@ -317,17 +368,8 @@ class GoogleWalletService
     /**
      * POST /loyaltyObject/{objectId}/addMessage
      *
-     * messageType TEXT_AND_NOTIFY triggers a push notification in Android.
-     * messageType TEXT adds the message to the pass details silently.
-     *
-     * {
-     *   "message": {
-     *     "header": "Nueva visita registrada",
-     *     "body": "Llevas 3/10 visitas.",
-     *     "id": "visit-42-3-1717200000",
-     *     "messageType": "TEXT_AND_NOTIFY"
-     *   }
-     * }
+     * messageType TEXT_AND_NOTIFY adds the message to the pass details and triggers an
+     * Android Google Wallet notification. messageType TEXT adds the message silently.
      */
     private function callAddMessage(
         string $objectId,
@@ -336,62 +378,58 @@ class GoogleWalletService
         bool $notify = true,
         string $header = '',
     ): void {
-        if (! $notify) {
-            Log::debug('GoogleWallet: callAddMessage notify=false — mensaje silencioso', [
-                'object_id'  => $objectId,
-                'message_id' => $messageId,
-            ]);
-        }
-
         $objectState = $this->fetchObjectState($objectId);
 
         if (! $objectState['exists']) {
-            Log::warning('GoogleWallet: addMessage omitido — objeto no encontrado en Google Wallet', [
-                'object_id' => $objectId,
-            ]);
-            return;
-        }
-
-        if (! in_array($objectState['state'], ['ACTIVE', null], true)) {
-            Log::warning('GoogleWallet: addMessage omitido — pase no está ACTIVE', [
+            Log::warning('GoogleWallet: addMessage skipped — object not found or could not be fetched', [
                 'object_id' => $objectId,
                 'state'     => $objectState['state'],
             ]);
             return;
         }
 
-        $cacheKey = "gw_push_count:{$objectId}:" . now()->toDateString();
+        $state = $objectState['state'];
+        $normalizedState = filled($state) ? strtoupper((string) $state) : 'ACTIVE';
 
-        if ($notify) {
-            $count = (int) cache()->get($cacheKey, 0);
-
-            if ($count >= self::MAX_PUSH_NOTIFICATIONS_PER_DAY) {
-                Log::warning('GoogleWallet: addMessage omitido — límite de notificaciones alcanzado', [
-                    'object_id' => $objectId,
-                    'count'     => $count,
-                    'limit'     => self::MAX_PUSH_NOTIFICATIONS_PER_DAY,
-                ]);
-                return;
-            }
+        if (! in_array($normalizedState, ['ACTIVE', 'STATE_UNSPECIFIED'], true)) {
+            Log::warning('GoogleWallet: addMessage skipped — pass is not ACTIVE', [
+                'object_id' => $objectId,
+                'state'     => $state,
+            ]);
+            return;
         }
 
-        $baseUrl     = rtrim((string) config('mobile-pass.google.api_base_url'), '/');
-        $url         = "{$baseUrl}/loyaltyObject/{$objectId}/addMessage";
+        $cacheKey = "gw_push_count_24h:{$objectId}";
+        $count = (int) cache()->get($cacheKey, 0);
+
+        if ($notify && $count >= self::MAX_PUSH_NOTIFICATIONS_PER_DAY) {
+            Log::warning('GoogleWallet: addMessage skipped — Google 24h notification limit reached locally', [
+                'object_id' => $objectId,
+                'count'     => $count,
+                'limit'     => self::MAX_PUSH_NOTIFICATIONS_PER_DAY,
+            ]);
+            return;
+        }
+
+        $url = sprintf(
+            '%s/loyaltyObject/%s/addMessage',
+            $this->googleWalletApiBaseUrl(),
+            rawurlencode($objectId),
+        );
+
         $messageType = $notify ? 'TEXT_AND_NOTIFY' : 'TEXT';
 
         $message = [
+            'header'      => filled($header) ? $header : (string) config('app.name', 'Wallet'),
             'body'        => $body,
             'id'          => $messageId,
             'messageType' => $messageType,
         ];
 
-        if (filled($header)) {
-            $message['header'] = $header;
-        }
-
         try {
             $response = Http::withToken($this->jwtSigner->accessToken())
                 ->acceptJson()
+                ->asJson()
                 ->post($url, ['message' => $message]);
 
             if ($response->failed()) {
@@ -400,19 +438,19 @@ class GoogleWalletService
                     'message_id'   => $messageId,
                     'message_type' => $messageType,
                     'status'       => $response->status(),
-                    'response'     => $response->body(),
+                    'response'     => $response->json() ?? $response->body(),
                 ]);
                 return;
             }
 
             if ($notify) {
-                cache()->put($cacheKey, (int) cache()->get($cacheKey, 0) + 1, now()->endOfDay());
+                cache()->put($cacheKey, $count + 1, now()->addDay());
             }
 
             Log::info('GoogleWallet: addMessage sent successfully', [
                 'object_id'    => $objectId,
                 'message_id'   => $messageId,
-                'header'       => $header,
+                'header'       => $message['header'],
                 'body'         => $body,
                 'message_type' => $messageType,
             ]);
@@ -427,30 +465,47 @@ class GoogleWalletService
     // ── Private helpers ───────────────────────────────────────────────────────
 
     /**
-     * GET /loyaltyObject/{objectId} — verifica existencia y estado en Google Wallet.
+     * GET /loyaltyObject/{objectId} — verifies existence and object state in Google Wallet.
      * Returns ['exists' => bool, 'state' => string|null]
      */
     private function fetchObjectState(string $objectId): array
     {
-        $baseUrl = rtrim((string) config('mobile-pass.google.api_base_url'), '/');
+        $url = sprintf(
+            '%s/loyaltyObject/%s',
+            $this->googleWalletApiBaseUrl(),
+            rawurlencode($objectId),
+        );
 
         try {
             $response = Http::withToken($this->jwtSigner->accessToken())
                 ->acceptJson()
-                ->get("{$baseUrl}/loyaltyObject/{$objectId}");
+                ->get($url);
 
             if ($response->successful()) {
                 return ['exists' => true, 'state' => $response->json('state')];
             }
 
+            Log::warning('GoogleWallet: fetchObjectState failed', [
+                'object_id' => $objectId,
+                'status'    => $response->status(),
+                'response'  => $response->json() ?? $response->body(),
+            ]);
+
             return ['exists' => false, 'state' => null];
         } catch (\Throwable $e) {
-            Log::warning('GoogleWallet: fetchObjectState error', [
+            Log::warning('GoogleWallet: fetchObjectState exception', [
                 'object_id' => $objectId,
                 'error'     => $e->getMessage(),
             ]);
             return ['exists' => false, 'state' => null];
         }
+    }
+
+    private function googleWalletApiBaseUrl(): string
+    {
+        $configured = (string) config('mobile-pass.google.api_base_url', '');
+
+        return rtrim($configured !== '' ? $configured : self::WALLET_API_BASE_URL, '/');
     }
 
     private function resolveObjectId(MobilePass $pass): ?string
