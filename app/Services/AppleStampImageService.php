@@ -20,9 +20,9 @@ class AppleStampImageService
     private const W = 750;
     private const H = 246;
     private const SCALE = 2;  // super-sample for anti-aliasing
-    private const ROWS = 3;   // fixed 3-row layout
-    private const COLS = 5;   // fixed 5-column layout
-    private const LAYOUT_VERSION = 'apple_layout_v4';
+    private const ROWS = 2;   // fixed 2-row layout
+    private const COLS = 5;   // fixed 5-column layout → 10 stamps, standard
+    private const LAYOUT_VERSION = 'apple_layout_v6';
 
     /** @var array<string, \GdImage|null> */
     private array $assetCache = [];
@@ -73,12 +73,6 @@ class AppleStampImageService
         $total    = $program->total_stamps;
         $filled   = min($card->stamps_collected, $total);
 
-        $prizeSystem = $card->resolvedPrizeSystem();
-        if ($prizeSystem) {
-            $prizeSystem->loadMissing('milestones');
-        }
-        $milestoneCounts = array_flip($prizeSystem?->milestoneCounts() ?? []);
-
         $style = $program->stamp_style ?? 'minimal';
         $scale = max(0.5, min(1.5, (float) ($program->stamp_scale ?? 1.0)));
         $font  = $program->fontPath();
@@ -102,11 +96,11 @@ class AppleStampImageService
             $this->drawBackground($canvas, $rW, $rH, $style, $bgR, $bgG, $bgB);
         }
 
-        $rows   = self::ROWS;   // 3 filas fijas
-        $perRow = self::COLS;   // 5 columnas fijas → 15 posiciones siempre
+        $rows   = self::ROWS;   // 2 filas fijas
+        $perRow = self::COLS;   // 5 columnas fijas → 10 posiciones siempre
 
         // Safe area for Apple Wallet strip.
-        // Keeps stamps and milestone badges away from the strip edges.
+        // Keeps stamps away from the strip edges.
         $safePadX = (int) ($rW * 0.070);
         $safePadY = (int) ($rH * 0.075);
 
@@ -135,7 +129,7 @@ class AppleStampImageService
         // Minimum horizontal gap, but do not force it to be as large as vertical gap.
         $gapX = max(3 * self::SCALE, $gapX);
 
-        // Fixed 5×3 grid dimensions.
+        // Fixed 5×2 grid dimensions.
         $totalGridW = ($perRow * $stampD) + (($perRow - 1) * $gapX);
         $totalGridH = ($rows   * $stampD) + (($rows   - 1) * $gapY);
 
@@ -168,26 +162,18 @@ class AppleStampImageService
             'font'        => $font,
             'filledAsset' => $program->filled_stamp_image,
             'emptyAsset'  => $program->empty_stamp_image,
-            'badgeAsset'  => $program->reward_badge_image,
         ];
 
         $stampN = 0;
         for ($row = 0; $row < $rows; $row++) {
             for ($col = 0; $col < $perRow; $col++, $stampN++) {
-                $cx          = $startX + $col * ($stampD + $gapX) + (int) ($stampD / 2);
-                $cy          = $startY + $row * ($stampD + $gapY) + (int) ($stampD / 2);
-                $stampNumber = $stampN + 1;
-                $isMilestone = isset($milestoneCounts[$stampNumber]);
-                $isFinal     = ($stampNumber === $total);
+                $cx = $startX + $col * ($stampD + $gapX) + (int) ($stampD / 2);
+                $cy = $startY + $row * ($stampD + $gapY) + (int) ($stampD / 2);
 
                 if ($stampN < $filled) {
                     $this->renderFilledStamp($canvas, $cx, $cy, $stampD, $ctx);
                 } else {
                     $this->renderEmptyStamp($canvas, $cx, $cy, $stampD, $ctx);
-                }
-
-                if ($isMilestone || $isFinal) {
-                    $this->renderMilestoneBadge($canvas, $cx, $cy, $stampD, $ctx, $isFinal);
                 }
             }
         }
@@ -237,39 +223,6 @@ class AppleStampImageService
             'retro'  => $this->drawRetroEmpty($c, $cx, $cy, $d),
             default  => $this->drawMinimalEmpty($c, $cx, $cy, $d, $ctx),
         };
-    }
-
-    private function renderMilestoneBadge(\GdImage $c, int $cx, int $cy, int $d, array $ctx, bool $isFinal): void
-    {
-        $badgeD = (int) ($d * 0.38);
-        $r      = (int) ($d / 2);
-        $bx     = $cx + (int) ($r * 0.64);
-        $by     = $cy - (int) ($r * 0.64);
-
-        if ($ctx['badgeAsset'] && ($asset = $this->loadAsset($ctx['badgeAsset']))) {
-            $this->pasteAsset($c, $asset, $bx, $by, $badgeD);
-            return;
-        }
-
-        $br     = (int) ($badgeD / 2);
-        $shadow = imagecolorallocatealpha($c, 0, 0, 0, 85);
-        imagefilledellipse($c, $bx + 2, $by + 2, $badgeD + 4, $badgeD + 4, $shadow);
-
-        [$fillR, $fillG, $fillB]       = $isFinal ? [255, 210, 40] : [60, 200, 110];
-        [$outlineR, $outlineG, $outlineB] = $isFinal ? [170, 125, 5] : [25, 130, 65];
-
-        imagefilledellipse($c, $bx, $by, $badgeD + 3, $badgeD + 3, imagecolorallocate($c, $outlineR, $outlineG, $outlineB));
-        imagefilledellipse($c, $bx, $by, $badgeD, $badgeD, imagecolorallocate($c, $fillR, $fillG, $fillB));
-        imagefilledellipse($c, $bx - (int)($br * 0.2), $by - (int)($br * 0.2), (int)($badgeD * 0.55), (int)($badgeD * 0.55), imagecolorallocatealpha($c, 255, 255, 255, 60));
-
-        $font = $ctx['font'];
-        if (file_exists($font)) {
-            $sz   = (int) ($br * 0.85);
-            $bbox = imagettfbbox($sz, 0, $font, '*');
-            $tw   = abs($bbox[4] - $bbox[0]);
-            $th   = abs($bbox[5] - $bbox[1]);
-            imagettftext($c, $sz, 0, (int)($bx - $tw / 2), (int)($by + $th / 2), imagecolorallocate($c, 50, 25, 0), $font, '*');
-        }
     }
 
     // ── Themes ────────────────────────────────────────────────────────────────
@@ -519,7 +472,6 @@ class AppleStampImageService
             $program->stamp_style ?? 'minimal',
             $program->filled_stamp_image ?? '',
             $program->empty_stamp_image ?? '',
-            $program->reward_badge_image ?? '',
             $program->stamp_scale ?? '1.00',
             $program->stamp_spacing ?? '12',
             $program->pass_background_image ?? '',

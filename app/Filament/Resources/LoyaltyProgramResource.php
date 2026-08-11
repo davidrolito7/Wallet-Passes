@@ -200,7 +200,7 @@ class LoyaltyProgramResource extends Resource
             // IMÁGENES PARA WALLET
             // ─────────────────────────────────────────────────────────
             Section::make('Imágenes para Wallet')
-                ->description('Sube los 3 stickers para activar la versión visual (3 filas × 5 sellos). Sin stickers se muestra el contador de texto.')
+                ->description('Sube los 2 stickers para activar la versión visual (2 filas × 5 sellos). Sin stickers se muestra el contador de texto.')
                 ->icon('heroicon-o-photo')
                 ->collapsible()
                 ->schema([
@@ -227,15 +227,6 @@ class LoyaltyProgramResource extends Resource
                     FileUpload::make('empty_stamp_image')
                         ->label('Sticker — Estampa Vacía')
                         ->helperText('PNG transparente · Aparece en los sellos pendientes · Recomendado 200×200 px')
-                        ->image()
-                        ->disk('public')
-                        ->directory('programs/stamps')
-                        ->acceptedFileTypes(['image/png', 'image/webp'])
-                        ->imagePreviewHeight('80'),
-
-                    FileUpload::make('reward_badge_image')
-                        ->label('Sticker — Premio / Badge')
-                        ->helperText('PNG transparente · Se superpone en milestones y sello final · Recomendado 100×100 px')
                         ->image()
                         ->disk('public')
                         ->directory('programs/stamps')

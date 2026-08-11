@@ -5,7 +5,7 @@
 
 @section('content')
 @php
-    $defaultImgVersion = ($program?->filled_stamp_image || $program?->empty_stamp_image || $program?->reward_badge_image) ? '2' : '1';
+    $defaultImgVersion = ($program?->filled_stamp_image || $program?->empty_stamp_image) ? '2' : '1';
     $imgVersion = old('image_version', $defaultImgVersion);
     $birthdayEnabled = old('birthday_reward_enabled', $program?->birthday_reward_enabled ?? false);
     $notifEnabled = old('visit_notification_enabled', $program?->visit_notification_enabled ?? false);
@@ -278,7 +278,7 @@
                            onchange="switchImgVersion('2')">
                     <div>
                         <p class="text-sm font-semibold text-gray-800">Versión 2 — Sellos visuales</p>
-                        <p class="text-xs text-gray-500 mt-0.5">Cuadrícula de sellos con sello lleno, vacío y badge de premio.</p>
+                        <p class="text-xs text-gray-500 mt-0.5">Cuadrícula de sellos con sello lleno y vacío.</p>
                     </div>
                 </label>
             </div>
@@ -305,11 +305,10 @@
 
             {{-- Panel Versión 2 --}}
             <div id="panel-v2" class="{{ $imgVersion === '1' ? 'hidden' : '' }}">
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     @foreach([
-                        ['filled_stamp_image', 'Sello Lleno',     'Aparece en visitas ya registradas · PNG transparente · 200×200 px'],
-                        ['empty_stamp_image',  'Sello Vacío',     'Aparece en visitas pendientes · PNG transparente · 200×200 px'],
-                        ['reward_badge_image', 'Badge de Premio', 'Se superpone en milestones y sello final · PNG transparente · 100×100 px'],
+                        ['filled_stamp_image', 'Sello Lleno', 'Aparece en visitas ya registradas · PNG transparente · 200×200 px'],
+                        ['empty_stamp_image',  'Sello Vacío', 'Aparece en visitas pendientes · PNG transparente · 200×200 px'],
                     ] as [$field, $label, $hint])
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">{{ $label }}</label>

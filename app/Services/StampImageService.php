@@ -13,7 +13,7 @@ use App\Models\LoyaltyProgram;
  * falls back to a procedural style that matches the chosen theme.
  *
  * Themes:   minimal · luxury · neon · coffee · retro
- * Assets:   filled_stamp_image, empty_stamp_image, reward_badge_image
+ * Assets:   filled_stamp_image, empty_stamp_image
  */
 class StampImageService
 {
@@ -24,8 +24,10 @@ class StampImageService
     // Super-sampling factor for anti-aliasing (render at 3× then downsample)
     private const SCALE = 3;
 
-    private const ROWS = 3; // fixed 3-row layout
-    private const COLS = 5; // fixed 5-column layout
+    private const ROWS = 2; // fixed 2-row layout
+    private const COLS = 5; // fixed 5-column layout → 10 stamps, standard
+
+    private const LAYOUT_VERSION = 'google_layout_v3';
 
     /** @var array<string, \GdImage|null> */
     private array $assetCache = [];
@@ -83,7 +85,6 @@ class StampImageService
         if ($prizeSystem) {
             $prizeSystem->loadMissing('milestones');
         }
-        $milestoneCounts = array_flip($prizeSystem?->milestoneCounts() ?? []);
 
         $style = $program->stamp_style ?? 'minimal';
         $scale = max(0.5, min(1.5, (float) ($program->stamp_scale ?? 1.0)));
@@ -103,8 +104,8 @@ class StampImageService
         $this->drawBackground($canvas, $rW, $rH, $style, $bgR, $bgG, $bgB);
 
         // ── Stamp layout ─────────────────────────────────────────────────────
-        $rows   = self::ROWS;   // 3 filas fijas
-        $perRow = self::COLS;   // 5 columnas fijas → 15 posiciones siempre
+        $rows   = self::ROWS;   // 2 filas fijas
+        $perRow = self::COLS;   // 5 columnas fijas → 10 posiciones siempre
 
         // Wide zone so the grid fills the canvas; tall enough for medium-large stamps
         $availW = (int) ($rW * 0.92);
@@ -121,9 +122,21 @@ class StampImageService
         // Horizontal gap: calculated to spread 5 stamps evenly across the available width
         $gapX = max($gapY, (int) floor(($availW - $perRow * $stampD) / ($perRow - 1)));
 
-        // Fixed 5×3 grid dimensions (independent of $total — always 15 positions)
+        // Fixed 5×2 grid dimensions (independent of $total — always 10 positions)
         $totalGridW = $perRow * $stampD + ($perRow - 1) * $gapX;
         $totalGridH = $rows   * $stampD + ($rows   - 1) * $gapY;
+
+        // Safety net: with only 2 rows, larger scale settings could push the grid past the
+        // available zone. Shrink stamps proportionally rather than letting them overflow/overlap.
+        if ($totalGridW > $availW || $totalGridH > $availH) {
+            $fitScale = min($availW / $totalGridW, $availH / $totalGridH);
+            $stampD   = (int) floor($stampD * $fitScale);
+
+            $gapX = max((int) floor($gapY * $fitScale), (int) floor(($availW - $perRow * $stampD) / ($perRow - 1)));
+
+            $totalGridW = $perRow * $stampD + ($perRow - 1) * $gapX;
+            $totalGridH = $rows   * $stampD + ($rows   - 1) * $gapY;
+        }
 
         // Horizontal: centre in canvas; vertical: centre above progress strip (top 80 %)
         $startX  = (int) (($rW - $totalGridW) / 2);
@@ -137,26 +150,18 @@ class StampImageService
             'font'        => $font,
             'filledAsset' => $program->filled_stamp_image,
             'emptyAsset'  => $program->empty_stamp_image,
-            'badgeAsset'  => $program->reward_badge_image,
         ];
 
         $stampN = 0;
         for ($row = 0; $row < $rows; $row++) {
             for ($col = 0; $col < $perRow; $col++, $stampN++) {
-                $cx          = $startX + $col * ($stampD + $gapX) + (int) ($stampD / 2);
-                $cy          = $startY + $row * ($stampD + $gapY) + (int) ($stampD / 2);
-                $stampNumber = $stampN + 1;
-                $isMilestone = isset($milestoneCounts[$stampNumber]);
-                $isFinal     = ($stampNumber === $total);
+                $cx = $startX + $col * ($stampD + $gapX) + (int) ($stampD / 2);
+                $cy = $startY + $row * ($stampD + $gapY) + (int) ($stampD / 2);
 
                 if ($stampN < $filled) {
                     $this->renderFilledStamp($canvas, $cx, $cy, $stampD, $ctx);
                 } else {
                     $this->renderEmptyStamp($canvas, $cx, $cy, $stampD, $ctx);
-                }
-
-                if ($isMilestone || $isFinal) {
-                    $this->renderMilestoneBadge($canvas, $cx, $cy, $stampD, $ctx, $isFinal);
                 }
             }
         }
@@ -279,58 +284,6 @@ class StampImageService
             'retro'  => $this->drawRetroEmpty($canvas, $cx, $cy, $d),
             default  => $this->drawMinimalEmpty($canvas, $cx, $cy, $d, $ctx),
         };
-    }
-
-    private function renderMilestoneBadge(
-        \GdImage $canvas,
-        int $cx,
-        int $cy,
-        int $d,
-        array $ctx,
-        bool $isFinal,
-    ): void {
-        $badgeD = (int) ($d * 0.38);
-        $r      = (int) ($d / 2);
-        $bx     = $cx + (int) ($r * 0.64);
-        $by     = $cy - (int) ($r * 0.64);
-
-        if ($ctx['badgeAsset'] && ($asset = $this->loadAsset($ctx['badgeAsset']))) {
-            $this->pasteAsset($canvas, $asset, $bx, $by, $badgeD);
-
-            return;
-        }
-
-        // Procedural badge
-        $br = (int) ($badgeD / 2);
-
-        // Drop shadow
-        $shadow = imagecolorallocatealpha($canvas, 0, 0, 0, 85);
-        imagefilledellipse($canvas, $bx + 2, $by + 2, $badgeD + 4, $badgeD + 4, $shadow);
-
-        // Badge face: gold for final reward, green for intermediate
-        [$fillR, $fillG, $fillB]       = $isFinal ? [255, 210, 40] : [60, 200, 110];
-        [$outlineR, $outlineG, $outlineB] = $isFinal ? [170, 125, 5] : [25, 130, 65];
-
-        $badgeOutline = imagecolorallocate($canvas, $outlineR, $outlineG, $outlineB);
-        $badgeFill    = imagecolorallocate($canvas, $fillR, $fillG, $fillB);
-        $highlight    = imagecolorallocatealpha($canvas, 255, 255, 255, 60);
-
-        imagefilledellipse($canvas, $bx, $by, $badgeD + 3, $badgeD + 3, $badgeOutline);
-        imagefilledellipse($canvas, $bx, $by, $badgeD, $badgeD, $badgeFill);
-
-        // Subtle highlight arc (top-left)
-        imagefilledellipse($canvas, $bx - (int) ($br * 0.2), $by - (int) ($br * 0.2), (int) ($badgeD * 0.55), (int) ($badgeD * 0.55), $highlight);
-
-        // Star / asterisk glyph
-        $font = $ctx['font'];
-        if (file_exists($font)) {
-            $sz   = (int) ($br * 0.85);
-            $dark = imagecolorallocate($canvas, 50, 25, 0);
-            $bbox = imagettfbbox($sz, 0, $font, '*');
-            $tw   = abs($bbox[4] - $bbox[0]);
-            $th   = abs($bbox[5] - $bbox[1]);
-            imagettftext($canvas, $sz, 0, (int) ($bx - $tw / 2), (int) ($by + $th / 2), $dark, $font, '*');
-        }
     }
 
     // ── Theme: Minimal ────────────────────────────────────────────────────────
@@ -661,6 +614,7 @@ class StampImageService
         $business = $program->business;
 
         $hash = substr(md5(implode('|', [
+            self::LAYOUT_VERSION,
             $business->primary_color,
             $business->secondary_color,
             $program->stamp_icon,
@@ -668,7 +622,6 @@ class StampImageService
             $program->stamp_style ?? 'minimal',
             $program->filled_stamp_image ?? '',
             $program->empty_stamp_image ?? '',
-            $program->reward_badge_image ?? '',
             $program->stamp_scale ?? '1.00',
             $program->stamp_spacing ?? '15',
         ])), 0, 10);

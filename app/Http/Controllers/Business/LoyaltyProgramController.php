@@ -34,7 +34,6 @@ class LoyaltyProgramController extends Controller
             'pass_background_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
             'filled_stamp_image'   => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
             'empty_stamp_image'    => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
-            'reward_badge_image'   => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
             // Prize systems
             'prize_systems'                               => ['nullable', 'array'],
             'prize_systems.*.id'                          => ['nullable', 'integer'],
@@ -61,7 +60,7 @@ class LoyaltyProgramController extends Controller
         $program = LoyaltyProgram::firstOrNew(['business_id' => $business->id]);
 
         // Handle image uploads
-        foreach (['pass_background_image', 'filled_stamp_image', 'empty_stamp_image', 'reward_badge_image'] as $imageField) {
+        foreach (['pass_background_image', 'filled_stamp_image', 'empty_stamp_image'] as $imageField) {
             if ($request->hasFile($imageField)) {
                 if ($program->$imageField) {
                     Storage::disk('public')->delete($program->$imageField);
