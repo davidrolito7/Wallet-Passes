@@ -27,7 +27,7 @@ class StampImageService
     private const ROWS = 2; // fixed 2-row layout
     private const COLS = 5; // fixed 5-column layout → 10 stamps, standard
 
-    private const LAYOUT_VERSION = 'google_layout_v3';
+    private const LAYOUT_VERSION = 'google_layout_v4';
 
     /** @var array<string, \GdImage|null> */
     private array $assetCache = [];
@@ -107,20 +107,28 @@ class StampImageService
         $rows   = self::ROWS;   // 2 filas fijas
         $perRow = self::COLS;   // 5 columnas fijas → 10 posiciones siempre
 
-        // Wide zone so the grid fills the canvas; tall enough for medium-large stamps
-        $availW = (int) ($rW * 0.92);
-        $availH = (int) ($rH * 0.74);
+        // Vertical zone reserved for the stamp grid, above the progress strip (bottom 17 %).
+        $usableH = (int) ($rH * 0.83);
+
+        // Wide zone so the grid fills the canvas; tall enough for medium-large stamps.
+        // No badge/sticker is overlaid on stamps anymore, so the grid can use almost all
+        // of the usable zone instead of leaving clearance for a diagonal badge.
+        $availW = (int) ($rW * 0.94);
+        $availH = (int) ($usableH * 0.92);
 
         // Vertical gap: proportional to height (binding constraint on a wide canvas)
-        $gapY = (int) max(4 * self::SCALE, (int) ($rH * 0.030));
+        $gapY = (int) max(4 * self::SCALE, (int) ($rH * 0.024));
 
         // Stamp diameter from height — height is always the bottleneck (3:1 canvas)
         $maxByHeight = (int) floor(($availH - ($rows - 1) * $gapY) / $rows);
-        $stampD      = (int) ($maxByHeight * 0.84);
+        $stampD      = (int) ($maxByHeight * 0.92);
         $stampD      = (int) ($stampD * $scale);
 
-        // Horizontal gap: calculated to spread 5 stamps evenly across the available width
-        $gapX = max($gapY, (int) floor(($availW - $perRow * $stampD) / ($perRow - 1)));
+        // Horizontal gap: calculated to spread 5 stamps evenly, then tightened — no badge
+        // overlap to guard against anymore, so gaps can sit closer than raw leftover width.
+        $rawGapX             = (int) floor(($availW - ($perRow * $stampD)) / ($perRow - 1));
+        $horizontalTightness = 0.65;
+        $gapX                = max($gapY, (int) floor($rawGapX * $horizontalTightness));
 
         // Fixed 5×2 grid dimensions (independent of $total — always 10 positions)
         $totalGridW = $perRow * $stampD + ($perRow - 1) * $gapX;
@@ -138,10 +146,9 @@ class StampImageService
             $totalGridH = $rows   * $stampD + ($rows   - 1) * $gapY;
         }
 
-        // Horizontal: centre in canvas; vertical: centre above progress strip (top 80 %)
-        $startX  = (int) (($rW - $totalGridW) / 2);
-        $usableH = (int) ($rH * 0.80);
-        $startY  = (int) (($usableH - $totalGridH) / 2);
+        // Horizontal: centre in canvas; vertical: centre above progress strip
+        $startX = (int) (($rW - $totalGridW) / 2);
+        $startY = (int) (($usableH - $totalGridH) / 2);
 
         $ctx = [
             'style'       => $style,
@@ -541,7 +548,7 @@ class StampImageService
         array $ctx,
         mixed $nextMilestone,
     ): void {
-        $stripH = (int) ($h * 0.20);
+        $stripH = (int) ($h * 0.17);
         $stripY = $h - $stripH;
 
         $stripAlpha = match ($ctx['style']) {
