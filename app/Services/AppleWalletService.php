@@ -148,10 +148,11 @@ class AppleWalletService
         // wallet_msg: portador de la notificación push.
         // Apple PassFieldContent docs: %@ es OBLIGATORIO en changeMessage para que Apple muestre
         // el texto personalizado; sin él muestra el genérico localizado ("La tarjeta de tienda cambió").
-        // El value debe cambiar entre versiones para disparar la alerta.
-        // Solución: value = texto + "\n" + contador de sellos (siempre único, informativo, %@ lo muestra).
+        // El value debe cambiar entre versiones para disparar la alerta, incluso cuando el texto
+        // configurado es estático. Se agrega un marcador invisible (espacios de ancho cero) en vez
+        // de un contador visible, para no duplicar el "X/Y sellos" que ya se ve en la tarjeta.
         $notifText  = $this->resolveVisitMessage($card);
-        $fieldValue = $notifText . "\n" . $card->stamps_collected . '/' . $program->total_stamps . ' sellos';
+        $fieldValue = $notifText . str_repeat("\u{200B}", $card->stamps_collected);
         $builder->addBackField('wallet_msg', $fieldValue, label: 'Aviso', changeMessage: '%@');
 
         // Un solo save → un solo push APNS con el mensaje correcto.

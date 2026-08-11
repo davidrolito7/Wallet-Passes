@@ -273,6 +273,8 @@ class GoogleWalletService
 
         // This is the only LoyaltyObject field that can trigger a field-update notification.
         $payload['loyaltyPoints']['balance']['string'] = $this->balanceString($card);
+        // Google defaults this label to "Points" ("Puntos" in Spanish locales) when unset.
+        $payload['loyaltyPoints']['label'] = 'Visitas';
 
         // Hero image: stamp grid when assets are configured, otherwise static background.
         if ($program->filled_stamp_image || $program->empty_stamp_image) {
@@ -346,12 +348,6 @@ class GoogleWalletService
             'id'     => 'next_reward',
         ];
 
-        $modules[] = [
-            'header' => 'Premio al Completar',
-            'body'   => $card->resolvedPrizeSystem()?->reward_title ?? '—',
-            'id'     => 'final_reward',
-        ];
-
         if ($card->created_at) {
             $modules[] = [
                 'header' => 'Miembro desde',
@@ -411,6 +407,11 @@ class GoogleWalletService
             return;
         }
 
+        // addMessage always appends — it never replaces a message with the same id — so the
+        // pass details screen accumulates every past message forever. Clear the list first so
+        // only the message we are about to send is visible.
+        $this->clearMessages($objectId);
+
         $url = sprintf(
             '%s/loyaltyObject/%s/addMessage',
             $this->googleWalletApiBaseUrl(),
@@ -463,6 +464,23 @@ class GoogleWalletService
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    /**
+     * PATCH /loyaltyObject/{objectId} with an empty messages array.
+     * Google replaces array fields sent in a PATCH, so this wipes the pass's message history
+     * before sending a fresh one via addMessage — otherwise old messages never disappear.
+     */
+    private function clearMessages(string $objectId): void
+    {
+        try {
+            $this->client->patchObject('loyaltyObject', $objectId, ['messages' => []]);
+        } catch (\Throwable $e) {
+            Log::warning('GoogleWallet: clearMessages failed', [
+                'object_id' => $objectId,
+                'error'     => $e->getMessage(),
+            ]);
+        }
+    }
 
     /**
      * GET /loyaltyObject/{objectId} — verifies existence and object state in Google Wallet.
