@@ -6,7 +6,7 @@ use App\Models\LoyaltyCard;
 use App\Models\LoyaltyProgram;
 
 /**
- * Renders a hero image (1032×300 px) for Google Wallet loyalty cards.
+ * Renders a hero image (1032×450 px) for Google Wallet loyalty cards.
  *
  * Stamp assets are loaded from storage/app/public/ and blended onto a
  * theme-styled canvas.  When no custom asset is configured the renderer
@@ -17,9 +17,11 @@ use App\Models\LoyaltyProgram;
  */
 class StampImageService
 {
-    // Final output size — matches Google Wallet hero ratio (≈3.44:1)
+    // Final output size. Taller than the classic 1032×300 banner (~2.29:1 vs ~3.44:1) so the
+    // 5×2 stamp grid renders noticeably bigger — Google's own brand guidelines steer away from
+    // thin rectangular hero images in favor of more vertical room.
     private const W = 1032;
-    private const H = 300;
+    private const H = 450;
 
     // Super-sampling factor for anti-aliasing (render at 3× then downsample)
     private const SCALE = 3;
@@ -27,7 +29,7 @@ class StampImageService
     private const ROWS = 2; // fixed 2-row layout
     private const COLS = 5; // fixed 5-column layout → 10 stamps, standard
 
-    private const LAYOUT_VERSION = 'google_layout_v4';
+    private const LAYOUT_VERSION = 'google_layout_v5';
 
     /** @var array<string, \GdImage|null> */
     private array $assetCache = [];
@@ -119,7 +121,7 @@ class StampImageService
         // Vertical gap: proportional to height (binding constraint on a wide canvas)
         $gapY = (int) max(4 * self::SCALE, (int) ($rH * 0.024));
 
-        // Stamp diameter from height — height is always the bottleneck (3:1 canvas)
+        // Stamp diameter from height — height is always the bottleneck (wide canvas)
         $maxByHeight = (int) floor(($availH - ($rows - 1) * $gapY) / $rows);
         $stampD      = (int) ($maxByHeight * 0.92);
         $stampD      = (int) ($stampD * $scale);

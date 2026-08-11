@@ -207,7 +207,7 @@ class LoyaltyProgramResource extends Resource
 
                     FileUpload::make('pass_background_image')
                         ->label('Fondo del Wallet')
-                        ->helperText('PNG · Recomendado 1032×300 px · Fondo de Apple Wallet (strip) y Google Wallet (hero) cuando no hay stickers')
+                        ->helperText('PNG · Recomendado 1032×450 px · Fondo de Apple Wallet (strip) y Google Wallet (hero) cuando no hay stickers')
                         ->image()
                         ->disk('public')
                         ->directory('programs/backgrounds')

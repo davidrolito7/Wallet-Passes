@@ -299,7 +299,7 @@
                             <span class="text-xs text-gray-400">Imagen actual</span>
                         </div>
                     @endif
-                    <p class="mt-1 text-xs text-gray-400">PNG/JPEG/WebP · Recomendado 1032×300 px</p>
+                    <p class="mt-1 text-xs text-gray-400">PNG/JPEG/WebP · Recomendado 1032×450 px</p>
                 </div>
             </div>
 
