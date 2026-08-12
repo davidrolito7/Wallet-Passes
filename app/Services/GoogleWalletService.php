@@ -428,8 +428,7 @@ class GoogleWalletService
         ];
 
         try {
-            $response = Http::withToken($this->jwtSigner->accessToken())
-                ->acceptJson()
+            $response = $this->googleHttpRequest()
                 ->asJson()
                 ->post($url, ['message' => $message]);
 
@@ -466,6 +465,30 @@ class GoogleWalletService
     // ── Private helpers ───────────────────────────────────────────────────────
 
     /**
+     * addMessage and fetchObjectState call the Google Wallet REST API directly instead of going
+     * through Spatie's GoogleWalletClient (it has no addMessage primitive). That client retries
+     * transient failures automatically (`retry(3, 200, ...)`); our raw calls did not, which made
+     * message delivery to Android noticeably less reliable than every other pass update. Mirror
+     * the same retry policy here so a single network blip or 5xx doesn't just drop the message.
+     */
+    private function googleHttpRequest(): \Illuminate\Http\Client\PendingRequest
+    {
+        return Http::withToken($this->jwtSigner->accessToken())
+            ->acceptJson()
+            ->retry(3, 200, function (\Throwable $exception) {
+                if ($exception instanceof \Illuminate\Http\Client\ConnectionException) {
+                    return true;
+                }
+
+                if ($exception instanceof \Illuminate\Http\Client\RequestException) {
+                    return $exception->response->serverError();
+                }
+
+                return false;
+            }, throw: false);
+    }
+
+    /**
      * PATCH /loyaltyObject/{objectId} with an empty messages array.
      * Google replaces array fields sent in a PATCH, so this wipes the pass's message history
      * before sending a fresh one via addMessage — otherwise old messages never disappear.
@@ -495,9 +518,7 @@ class GoogleWalletService
         );
 
         try {
-            $response = Http::withToken($this->jwtSigner->accessToken())
-                ->acceptJson()
-                ->get($url);
+            $response = $this->googleHttpRequest()->get($url);
 
             if ($response->successful()) {
                 return ['exists' => true, 'state' => $response->json('state')];
