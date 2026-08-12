@@ -5,8 +5,6 @@
 
 @section('content')
 @php
-    $defaultImgVersion = ($program?->filled_stamp_image || $program?->empty_stamp_image) ? '2' : '1';
-    $imgVersion = old('image_version', $defaultImgVersion);
     $birthdayEnabled = old('birthday_reward_enabled', $program?->birthday_reward_enabled ?? false);
 
     // Build prize systems array for rendering
@@ -27,9 +25,9 @@
     if (empty($rawSystems)) {
         $rawSystems = [['id' => '', 'reward_title' => '', 'reward_description' => '', 'milestones' => []]];
     }
-    // Versión 2 siempre usa una cuadrícula fija de 10 sellos, así que ese modo no
-    // pide el total — solo la Versión 1 (contador de texto) lo necesita.
-    $totalStamps = old('total_stamps', $imgVersion === '2' ? 10 : ($program?->total_stamps ?? 10));
+    // Solo para mostrar "Premio Final — X visitas". El total de sellos ahora se
+    // configura en Mi Negocio, junto con las imágenes para Wallet.
+    $totalStamps = $program?->total_stamps ?? 10;
 @endphp
 
 <div class="space-y-8">
@@ -244,133 +242,7 @@
             </button>
         </div>
 
-        {{-- ─── 3. Imágenes para Wallet ────────────────────────────────────── --}}
-        <div class="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 class="text-base font-semibold text-gray-900 mb-1">Imágenes para Wallet</h2>
-            <p class="text-xs text-gray-500 mb-5">
-                Solo sube las imágenes que deseas cambiar. Las actuales se conservan si no seleccionas un archivo nuevo.
-            </p>
-
-            {{-- v1 / v2 switch --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-                <label for="img_v1"
-                       id="label_v1"
-                       class="relative flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all
-                              {{ $imgVersion === '1' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300' }}">
-                    <input type="radio" id="img_v1" name="image_version" value="1"
-                           {{ $imgVersion === '1' ? 'checked' : '' }}
-                           class="mt-0.5 h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
-                           onchange="switchImgVersion('1')">
-                    <div>
-                        <p class="text-sm font-semibold text-gray-800">Versión 1 — Imagen de fondo</p>
-                        <p class="text-xs text-gray-500 mt-0.5">Una sola imagen de fondo para la tarjeta. Sin sellos personalizados.</p>
-                    </div>
-                </label>
-
-                <label for="img_v2"
-                       id="label_v2"
-                       class="relative flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all
-                              {{ $imgVersion === '2' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300' }}">
-                    <input type="radio" id="img_v2" name="image_version" value="2"
-                           {{ $imgVersion === '2' ? 'checked' : '' }}
-                           class="mt-0.5 h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
-                           onchange="switchImgVersion('2')">
-                    <div>
-                        <p class="text-sm font-semibold text-gray-800">Versión 2 — Sellos visuales</p>
-                        <p class="text-xs text-gray-500 mt-0.5">Cuadrícula de sellos con sello lleno y vacío.</p>
-                    </div>
-                </label>
-            </div>
-
-            {{-- Panel Versión 1 --}}
-            <div id="panel-v1" class="{{ $imgVersion === '2' ? 'hidden' : '' }}">
-                <div class="max-w-xs mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Total de visitas/sellos <span class="text-red-500">*</span>
-                    </label>
-                    <input type="number"
-                           id="total-stamps-input"
-                           name="total_stamps"
-                           value="{{ $totalStamps }}"
-                           min="1" max="50"
-                           {{ $imgVersion === '1' ? 'required' : 'disabled' }}
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('total_stamps') border-red-400 @enderror">
-                    @error('total_stamps')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div class="max-w-sm">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Imagen de Fondo</label>
-                    <input type="file" id="bg-image-v1" name="pass_background_image" accept="image/png,image/jpeg,image/webp"
-                           class="block w-full text-sm text-gray-500
-                                  file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0
-                                  file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700
-                                  hover:file:bg-indigo-100">
-                    @if($program?->pass_background_image)
-                        <div class="mt-2 flex items-center gap-2">
-                            <img src="{{ Storage::disk('public')->url($program->pass_background_image) }}"
-                                 alt="Fondo" class="h-12 w-20 object-cover rounded border border-gray-200">
-                            <span class="text-xs text-gray-400">Imagen actual</span>
-                        </div>
-                    @endif
-                    <p class="mt-1 text-xs text-gray-400">PNG/JPEG/WebP · Recomendado 1032×450 px</p>
-                </div>
-            </div>
-
-            {{-- Panel Versión 2 --}}
-            <div id="panel-v2" class="{{ $imgVersion === '1' ? 'hidden' : '' }}">
-                <input type="hidden"
-                       id="total-stamps-v2"
-                       name="total_stamps"
-                       value="10"
-                       {{ $imgVersion === '2' ? '' : 'disabled' }}>
-                <p class="text-xs text-gray-400 mb-4">Este diseño siempre usa 10 sellos fijos.</p>
-
-                <div class="max-w-sm mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Imagen de Fondo</label>
-                    <input type="file" id="bg-image-v2" name="pass_background_image" accept="image/png,image/jpeg,image/webp"
-                           class="block w-full text-sm text-gray-500
-                                  file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0
-                                  file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700
-                                  hover:file:bg-indigo-100">
-                    @if($program?->pass_background_image)
-                        <div class="mt-2 flex items-center gap-2">
-                            <img src="{{ Storage::disk('public')->url($program->pass_background_image) }}"
-                                 alt="Fondo" class="h-12 w-20 object-cover rounded border border-gray-200">
-                            <span class="text-xs text-gray-400">Imagen actual</span>
-                        </div>
-                    @endif
-                    <p class="mt-1 text-xs text-gray-400">PNG/JPEG/WebP · Recomendado 1032×450 px · Se muestra detrás de la cuadrícula de sellos</p>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    @foreach([
-                        ['filled_stamp_image', 'Sello Lleno', 'Aparece en visitas ya registradas · PNG transparente · 200×200 px'],
-                        ['empty_stamp_image',  'Sello Vacío', 'Aparece en visitas pendientes · PNG transparente · 200×200 px'],
-                    ] as [$field, $label, $hint])
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">{{ $label }}</label>
-                            <input type="file" name="{{ $field }}" accept="image/png,image/webp"
-                                   class="block w-full text-sm text-gray-500
-                                          file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0
-                                          file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700
-                                          hover:file:bg-indigo-100">
-                            @if($program?->$field)
-                                <div class="mt-2 flex items-center gap-2">
-                                    <img src="{{ Storage::disk('public')->url($program->$field) }}"
-                                         alt="{{ $label }}" class="h-12 w-12 object-cover rounded border border-gray-200">
-                                    <span class="text-xs text-gray-400">Imagen actual</span>
-                                </div>
-                            @endif
-                            <p class="mt-1 text-xs text-gray-400">{{ $hint }}</p>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        </div>
-
-        {{-- ─── 4. Premio de Cumpleaños ────────────────────────────────────── --}}
+        {{-- ─── 3. Premio de Cumpleaños ────────────────────────────────────── --}}
         <div class="bg-white rounded-xl border border-gray-200 p-6">
             <h2 class="text-base font-semibold text-gray-900 mb-1">Premio de Cumpleaños</h2>
             <p class="text-xs text-gray-500 mb-5">El cliente verá su regalo especial en la tarjeta el día de su cumpleaños.</p>
@@ -417,7 +289,7 @@
             </div>
         </div>
 
-        {{-- ─── 5. Notificaciones al Wallet ────────────────────────────────── --}}
+        {{-- ─── 4. Notificaciones al Wallet ────────────────────────────────── --}}
         <div class="bg-white rounded-xl border border-gray-200 p-6">
             <h2 class="text-base font-semibold text-gray-900 mb-1">Notificaciones al Wallet</h2>
             <p class="text-xs text-gray-500 mb-5">
@@ -460,49 +332,6 @@
 
 @push('scripts')
 <script>
-// ── Image version switch ──────────────────────────────────────────────────────
-
-function switchImgVersion(v) {
-    const v1Panel = document.getElementById('panel-v1');
-    const v2Panel = document.getElementById('panel-v2');
-    const labelV1 = document.getElementById('label_v1');
-    const labelV2 = document.getElementById('label_v2');
-
-    // Both panels have a "pass_background_image" file input. Only one can hold a file at
-    // submit time, so clear the one that just became hidden/inactive.
-    const bgV1 = document.getElementById('bg-image-v1');
-    const bgV2 = document.getElementById('bg-image-v2');
-
-    // Total de sellos: Versión 1 lo pide (contador de texto libre); Versión 2 lo fija en 10
-    // (cuadrícula fija). Solo el input de la versión activa debe enviarse/validarse.
-    const stampsV1 = document.getElementById('total-stamps-input');
-    const stampsV2 = document.getElementById('total-stamps-v2');
-
-    if (v === '1') {
-        v1Panel.classList.remove('hidden');
-        v2Panel.classList.add('hidden');
-        labelV1.classList.add('border-indigo-500', 'bg-indigo-50');
-        labelV1.classList.remove('border-gray-200');
-        labelV2.classList.remove('border-indigo-500', 'bg-indigo-50');
-        labelV2.classList.add('border-gray-200');
-        if (bgV2) bgV2.value = '';
-        if (stampsV1) { stampsV1.disabled = false; stampsV1.required = true; }
-        if (stampsV2) stampsV2.disabled = true;
-        syncTotalStampsLabels(stampsV1 ? (stampsV1.value || '10') : '10');
-    } else {
-        v2Panel.classList.remove('hidden');
-        v1Panel.classList.add('hidden');
-        labelV2.classList.add('border-indigo-500', 'bg-indigo-50');
-        labelV2.classList.remove('border-gray-200');
-        labelV1.classList.remove('border-indigo-500', 'bg-indigo-50');
-        labelV1.classList.add('border-gray-200');
-        if (bgV1) bgV1.value = '';
-        if (stampsV1) { stampsV1.disabled = true; stampsV1.required = false; }
-        if (stampsV2) stampsV2.disabled = false;
-        syncTotalStampsLabels('10');
-    }
-}
-
 // ── Birthday fields ───────────────────────────────────────────────────────────
 
 function toggleBirthdayFields(enabled) {
@@ -510,26 +339,9 @@ function toggleBirthdayFields(enabled) {
     if (fields) fields.classList.toggle('hidden', !enabled);
 }
 
-// ── Total stamps label sync ───────────────────────────────────────────────────
-
-function syncTotalStampsLabels(val) {
-    document.querySelectorAll('.total-stamps-label').forEach(el => {
-        el.textContent = val || '0';
-    });
-}
-
-function currentTotalStamps() {
-    const v1 = document.getElementById('total-stamps-input');
-    if (v1 && !v1.disabled) return v1.value || '10';
-    return '10';
-}
-
-(function initTotalStampsSync() {
-    const input = document.getElementById('total-stamps-input');
-    if (!input) return;
-
-    input.addEventListener('input', () => syncTotalStampsLabels(input.value));
-})();
+// El total de sellos ahora se configura en Mi Negocio junto con las imágenes para
+// Wallet. Aquí solo se usa como valor fijo para la etiqueta "Premio Final — X visitas".
+const TOTAL_STAMPS = {{ $totalStamps }};
 
 // ── Prize systems ─────────────────────────────────────────────────────────────
 
@@ -586,7 +398,7 @@ function milestoneTemplate(sysIdx, mIdx) {
 }
 
 function systemTemplate(idx) {
-    const totalStampsVal = currentTotalStamps();
+    const totalStampsVal = TOTAL_STAMPS;
     return `<div class="system-card rounded-xl border border-gray-200 overflow-hidden" data-system-index="${idx}">
         <div class="bg-gradient-to-r from-indigo-600 to-indigo-500 px-5 py-3 flex items-center justify-between">
             <div class="flex items-center gap-3">

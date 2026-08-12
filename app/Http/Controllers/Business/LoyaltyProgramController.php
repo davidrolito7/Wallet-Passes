@@ -7,7 +7,6 @@ use App\Models\LoyaltyProgram;
 use App\Models\LoyaltyPrizeSystem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 
 class LoyaltyProgramController extends Controller
 {
@@ -28,13 +27,8 @@ class LoyaltyProgramController extends Controller
         $data = $request->validate([
             'name'                 => ['required', 'string', 'max:255'],
             'description'          => ['nullable', 'string'],
-            'total_stamps'         => ['required', 'integer', 'min:1', 'max:50'],
             'validity_months'      => ['nullable', 'integer', 'min:1', 'max:60'],
             'is_active'            => ['boolean'],
-            // Images
-            'pass_background_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
-            'filled_stamp_image'   => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
-            'empty_stamp_image'    => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
             // Prize systems
             'prize_systems'                               => ['nullable', 'array'],
             'prize_systems.*.id'                          => ['nullable', 'integer'],
@@ -56,18 +50,6 @@ class LoyaltyProgramController extends Controller
         ]);
 
         $program = LoyaltyProgram::firstOrNew(['business_id' => $business->id]);
-
-        // Handle image uploads
-        foreach (['pass_background_image', 'filled_stamp_image', 'empty_stamp_image'] as $imageField) {
-            if ($request->hasFile($imageField)) {
-                if ($program->$imageField) {
-                    Storage::disk('public')->delete($program->$imageField);
-                }
-                $data[$imageField] = $request->file($imageField)->store('programs/stamps', 'public');
-            } else {
-                unset($data[$imageField]);
-            }
-        }
 
         $data['business_id'] = $business->id;
         $data['is_active']   = $request->boolean('is_active', true);
