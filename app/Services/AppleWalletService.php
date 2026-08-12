@@ -31,6 +31,13 @@ class AppleWalletService
 
         $hasStickers = (bool) ($program->filled_stamp_image || $program->empty_stamp_image);
 
+        // Header: fecha de vigencia (mes/año) si el programa la tiene configurada; si no,
+        // se conserva el comportamiento anterior de mostrar la fecha de emisión.
+        $validUntil  = $card->validUntil();
+        $headerValue = $validUntil
+            ? 'Vigencia ' . $validUntil->format('m/y')
+            : 'Desde ' . $card->created_at->format('m/y');
+
         /** @var LoyaltyStoreCardBuilder $builder */
         $builder = LoyaltyStoreCardBuilder::make()
             ->setOrganizationName($business->name)
@@ -40,14 +47,15 @@ class AppleWalletService
             ->setForegroundColor($business->secondary_color)
             ->setLabelColor($business->label_color)
             ->setIconImage(...$this->iconPathsForBusiness($card))
-            // Header: nombre del programa / año de membresía
-            ->addHeaderField('member_since', 'Desde ' . $card->created_at->format('m/y'), label: $business->name)
+            // Header: nombre del negocio / vigencia de la tarjeta
+            ->addHeaderField('validity', $headerValue, label: $business->name)
             // Secondary: miembro + contador de visitas solo cuando hay stickers
             ->addSecondaryField('holder', $card->fullName(), label: 'Miembro')
             // Auxiliary: próximo premio
             ->addAuxiliaryField('next_reward', $this->nextRewardText($card), label: 'Próximo Premio')
             // Reverso de la tarjeta
             ->addBackField('program_name', filled($program->description) ? $program->description : $program->name, label: 'Términos')
+            ->addBackField('member_since', $card->created_at->translatedFormat('F Y'), label: 'Miembro desde')
             ->addBackField('prizes_list', $this->prizesListText($card), label: 'Premios')
             ->withBackFieldRight('prizes_list')
             ->addBackField('contact', $this->contactText($card), label: 'Contacto')

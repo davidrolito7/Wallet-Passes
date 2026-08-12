@@ -29,6 +29,7 @@ class LoyaltyProgramController extends Controller
             'name'                 => ['required', 'string', 'max:255'],
             'description'          => ['nullable', 'string'],
             'total_stamps'         => ['required', 'integer', 'min:1', 'max:50'],
+            'validity_months'      => ['nullable', 'integer', 'min:1', 'max:60'],
             'is_active'            => ['boolean'],
             // Images
             'pass_background_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096'],

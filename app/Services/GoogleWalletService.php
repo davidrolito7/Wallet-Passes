@@ -356,6 +356,14 @@ class GoogleWalletService
             ];
         }
 
+        if ($validUntil = $card->validUntil()) {
+            $modules[] = [
+                'header' => 'Vigencia',
+                'body'   => $validUntil->translatedFormat('F Y'),
+                'id'     => 'validity',
+            ];
+        }
+
         return $modules;
     }
 

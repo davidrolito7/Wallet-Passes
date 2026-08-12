@@ -28,6 +28,7 @@ class LoyaltyProgram extends Model
         'name',
         'description',
         'total_stamps',
+        'validity_months',
         'stamp_icon',
         'stamp_icon_url',
         'card_font',
@@ -56,6 +57,7 @@ class LoyaltyProgram extends Model
         return [
             'is_active'                   => 'boolean',
             'total_stamps'                => 'integer',
+            'validity_months'             => 'integer',
             'visit_notification_enabled'  => 'boolean',
             'birthday_reward_enabled'     => 'boolean',
         ];

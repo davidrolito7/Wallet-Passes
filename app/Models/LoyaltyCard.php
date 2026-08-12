@@ -171,4 +171,15 @@ class LoyaltyCard extends Model
     {
         return $this->stamps_collected >= ($this->loyaltyProgram?->total_stamps ?? PHP_INT_MAX);
     }
+
+    public function validUntil(): ?\Illuminate\Support\Carbon
+    {
+        $months = $this->loyaltyProgram?->validity_months;
+
+        if (! $months || ! $this->created_at) {
+            return null;
+        }
+
+        return $this->created_at->copy()->addMonths($months);
+    }
 }

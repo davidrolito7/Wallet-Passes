@@ -75,6 +75,16 @@ class LoyaltyProgramResource extends Resource
                         ->required()
                         ->live(),
 
+                    TextInput::make('validity_months')
+                        ->label('Vigencia de la Tarjeta')
+                        ->helperText('Meses desde la emisión hasta que la tarjeta vence. Se muestra en Apple Wallet y Google Wallet.')
+                        ->numeric()
+                        ->default(12)
+                        ->minValue(1)
+                        ->maxValue(60)
+                        ->suffix('meses')
+                        ->nullable(),
+
                     Toggle::make('is_active')
                         ->label('Programa Activo')
                         ->default(true)
