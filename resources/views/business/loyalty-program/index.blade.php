@@ -27,7 +27,9 @@
     if (empty($rawSystems)) {
         $rawSystems = [['id' => '', 'reward_title' => '', 'reward_description' => '', 'milestones' => []]];
     }
-    $totalStamps = old('total_stamps', $program?->total_stamps ?? 10);
+    // Versión 2 siempre usa una cuadrícula fija de 10 sellos, así que ese modo no
+    // pide el total — solo la Versión 1 (contador de texto) lo necesita.
+    $totalStamps = old('total_stamps', $imgVersion === '2' ? 10 : ($program?->total_stamps ?? 10));
 @endphp
 
 <div class="space-y-8">
@@ -249,22 +251,6 @@
                 Solo sube las imágenes que deseas cambiar. Las actuales se conservan si no seleccionas un archivo nuevo.
             </p>
 
-            <div class="max-w-xs mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Total de visitas/sellos <span class="text-red-500">*</span>
-                </label>
-                <input type="number"
-                       id="total-stamps-input"
-                       name="total_stamps"
-                       value="{{ $totalStamps }}"
-                       min="1" max="50" required
-                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('total_stamps') border-red-400 @enderror">
-                <p class="mt-1 text-xs text-gray-400">Aplica a las dos versiones de imagen.</p>
-                @error('total_stamps')
-                    <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                @enderror
-            </div>
-
             {{-- v1 / v2 switch --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                 <label for="img_v1"
@@ -298,6 +284,22 @@
 
             {{-- Panel Versión 1 --}}
             <div id="panel-v1" class="{{ $imgVersion === '2' ? 'hidden' : '' }}">
+                <div class="max-w-xs mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Total de visitas/sellos <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number"
+                           id="total-stamps-input"
+                           name="total_stamps"
+                           value="{{ $totalStamps }}"
+                           min="1" max="50"
+                           {{ $imgVersion === '1' ? 'required' : 'disabled' }}
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('total_stamps') border-red-400 @enderror">
+                    @error('total_stamps')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 <div class="max-w-sm">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Imagen de Fondo</label>
                     <input type="file" id="bg-image-v1" name="pass_background_image" accept="image/png,image/jpeg,image/webp"
@@ -318,6 +320,13 @@
 
             {{-- Panel Versión 2 --}}
             <div id="panel-v2" class="{{ $imgVersion === '1' ? 'hidden' : '' }}">
+                <input type="hidden"
+                       id="total-stamps-v2"
+                       name="total_stamps"
+                       value="10"
+                       {{ $imgVersion === '2' ? '' : 'disabled' }}>
+                <p class="text-xs text-gray-400 mb-4">Este diseño siempre usa 10 sellos fijos.</p>
+
                 <div class="max-w-sm mb-6">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Imagen de Fondo</label>
                     <input type="file" id="bg-image-v2" name="pass_background_image" accept="image/png,image/jpeg,image/webp"
@@ -427,15 +436,7 @@
                           maxlength="300"
                           placeholder="Llevas {stamps_collected}/{total_stamps} visitas. ¡Gracias por visitarnos, {first_name}!"
                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none @error('visit_notification_message') border-red-400 @enderror">{{ old('visit_notification_message', $program?->visit_notification_message) }}</textarea>
-                <p class="mt-1 text-xs text-gray-400">
-                    Variables:
-                    <code class="bg-gray-100 px-1 rounded">{first_name}</code>
-                    <code class="bg-gray-100 px-1 rounded">{stamps_collected}</code>
-                    <code class="bg-gray-100 px-1 rounded">{total_stamps}</code>
-                    <code class="bg-gray-100 px-1 rounded">{remaining_stamps}</code>
-                    <code class="bg-gray-100 px-1 rounded">{business_name}</code>
-                    <code class="bg-gray-100 px-1 rounded">{next_reward}</code>
-                </p>
+        
                 @error('visit_notification_message')
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                 @enderror
@@ -472,6 +473,11 @@ function switchImgVersion(v) {
     const bgV1 = document.getElementById('bg-image-v1');
     const bgV2 = document.getElementById('bg-image-v2');
 
+    // Total de sellos: Versión 1 lo pide (contador de texto libre); Versión 2 lo fija en 10
+    // (cuadrícula fija). Solo el input de la versión activa debe enviarse/validarse.
+    const stampsV1 = document.getElementById('total-stamps-input');
+    const stampsV2 = document.getElementById('total-stamps-v2');
+
     if (v === '1') {
         v1Panel.classList.remove('hidden');
         v2Panel.classList.add('hidden');
@@ -480,6 +486,9 @@ function switchImgVersion(v) {
         labelV2.classList.remove('border-indigo-500', 'bg-indigo-50');
         labelV2.classList.add('border-gray-200');
         if (bgV2) bgV2.value = '';
+        if (stampsV1) { stampsV1.disabled = false; stampsV1.required = true; }
+        if (stampsV2) stampsV2.disabled = true;
+        syncTotalStampsLabels(stampsV1 ? (stampsV1.value || '10') : '10');
     } else {
         v2Panel.classList.remove('hidden');
         v1Panel.classList.add('hidden');
@@ -488,6 +497,9 @@ function switchImgVersion(v) {
         labelV1.classList.remove('border-indigo-500', 'bg-indigo-50');
         labelV1.classList.add('border-gray-200');
         if (bgV1) bgV1.value = '';
+        if (stampsV1) { stampsV1.disabled = true; stampsV1.required = false; }
+        if (stampsV2) stampsV2.disabled = false;
+        syncTotalStampsLabels('10');
     }
 }
 
@@ -500,18 +512,23 @@ function toggleBirthdayFields(enabled) {
 
 // ── Total stamps label sync ───────────────────────────────────────────────────
 
+function syncTotalStampsLabels(val) {
+    document.querySelectorAll('.total-stamps-label').forEach(el => {
+        el.textContent = val || '0';
+    });
+}
+
+function currentTotalStamps() {
+    const v1 = document.getElementById('total-stamps-input');
+    if (v1 && !v1.disabled) return v1.value || '10';
+    return '10';
+}
+
 (function initTotalStampsSync() {
     const input = document.getElementById('total-stamps-input');
     if (!input) return;
 
-    function syncLabels() {
-        const val = input.value || '0';
-        document.querySelectorAll('.total-stamps-label').forEach(el => {
-            el.textContent = val;
-        });
-    }
-
-    input.addEventListener('input', syncLabels);
+    input.addEventListener('input', () => syncTotalStampsLabels(input.value));
 })();
 
 // ── Prize systems ─────────────────────────────────────────────────────────────
@@ -569,7 +586,7 @@ function milestoneTemplate(sysIdx, mIdx) {
 }
 
 function systemTemplate(idx) {
-    const totalStampsVal = document.getElementById('total-stamps-input')?.value || '10';
+    const totalStampsVal = currentTotalStamps();
     return `<div class="system-card rounded-xl border border-gray-200 overflow-hidden" data-system-index="${idx}">
         <div class="bg-gradient-to-r from-indigo-600 to-indigo-500 px-5 py-3 flex items-center justify-between">
             <div class="flex items-center gap-3">
