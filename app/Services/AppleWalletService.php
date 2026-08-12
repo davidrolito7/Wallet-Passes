@@ -192,9 +192,13 @@ class AppleWalletService
 
         // addBackField agrega wallet_msg si no existe (pases anteriores) o lo actualiza si ya existe.
         // %@ es obligatorio en changeMessage (Apple lo exige para mostrar texto personalizado).
-        // Añadimos la hora al value para garantizar que siempre sea distinto aunque el mensaje se repita.
+        // El value debe cambiar entre envíos para disparar la alerta, incluso si el mensaje es
+        // idéntico al anterior. Se agrega un marcador invisible (espacios de ancho cero) en vez
+        // de una fecha visible, igual que en updatePass().
+        $fieldValue = $message . str_repeat("\u{200B}", random_int(1, 30));
+
         $pass->builder()
-            ->addBackField('wallet_msg', $message . "\n" . now()->format('d/m H:i'), label: 'Aviso', changeMessage: '%@')
+            ->addBackField('wallet_msg', $fieldValue, label: 'Aviso', changeMessage: '%@')
             ->save();
     }
 
