@@ -8,7 +8,6 @@
     $defaultImgVersion = ($program?->filled_stamp_image || $program?->empty_stamp_image) ? '2' : '1';
     $imgVersion = old('image_version', $defaultImgVersion);
     $birthdayEnabled = old('birthday_reward_enabled', $program?->birthday_reward_enabled ?? false);
-    $notifEnabled = old('visit_notification_enabled', $program?->visit_notification_enabled ?? false);
 
     // Build prize systems array for rendering
     $rawSystems = old('prize_systems', null);
@@ -69,21 +68,6 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
                     <textarea name="description" rows="3"
                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none">{{ old('description', $program?->description) }}</textarea>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Total de visitas/sellos <span class="text-red-500">*</span>
-                    </label>
-                    <input type="number"
-                           id="total-stamps-input"
-                           name="total_stamps"
-                           value="{{ $totalStamps }}"
-                           min="1" max="50" required
-                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('total_stamps') border-red-400 @enderror">
-                    @error('total_stamps')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
                 </div>
 
                 <div>
@@ -265,6 +249,22 @@
                 Solo sube las imágenes que deseas cambiar. Las actuales se conservan si no seleccionas un archivo nuevo.
             </p>
 
+            <div class="max-w-xs mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Total de visitas/sellos <span class="text-red-500">*</span>
+                </label>
+                <input type="number"
+                       id="total-stamps-input"
+                       name="total_stamps"
+                       value="{{ $totalStamps }}"
+                       min="1" max="50" required
+                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('total_stamps') border-red-400 @enderror">
+                <p class="mt-1 text-xs text-gray-400">Aplica a las dos versiones de imagen.</p>
+                @error('total_stamps')
+                    <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                @enderror
+            </div>
+
             {{-- v1 / v2 switch --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                 <label for="img_v1"
@@ -300,7 +300,7 @@
             <div id="panel-v1" class="{{ $imgVersion === '2' ? 'hidden' : '' }}">
                 <div class="max-w-sm">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Imagen de Fondo</label>
-                    <input type="file" name="pass_background_image" accept="image/png,image/jpeg,image/webp"
+                    <input type="file" id="bg-image-v1" name="pass_background_image" accept="image/png,image/jpeg,image/webp"
                            class="block w-full text-sm text-gray-500
                                   file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0
                                   file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700
@@ -318,6 +318,23 @@
 
             {{-- Panel Versión 2 --}}
             <div id="panel-v2" class="{{ $imgVersion === '1' ? 'hidden' : '' }}">
+                <div class="max-w-sm mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Imagen de Fondo</label>
+                    <input type="file" id="bg-image-v2" name="pass_background_image" accept="image/png,image/jpeg,image/webp"
+                           class="block w-full text-sm text-gray-500
+                                  file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0
+                                  file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700
+                                  hover:file:bg-indigo-100">
+                    @if($program?->pass_background_image)
+                        <div class="mt-2 flex items-center gap-2">
+                            <img src="{{ Storage::disk('public')->url($program->pass_background_image) }}"
+                                 alt="Fondo" class="h-12 w-20 object-cover rounded border border-gray-200">
+                            <span class="text-xs text-gray-400">Imagen actual</span>
+                        </div>
+                    @endif
+                    <p class="mt-1 text-xs text-gray-400">PNG/JPEG/WebP · Recomendado 1032×450 px · Se muestra detrás de la cuadrícula de sellos</p>
+                </div>
+
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     @foreach([
                         ['filled_stamp_image', 'Sello Lleno', 'Aparece en visitas ya registradas · PNG transparente · 200×200 px'],
@@ -395,110 +412,38 @@
         <div class="bg-white rounded-xl border border-gray-200 p-6">
             <h2 class="text-base font-semibold text-gray-900 mb-1">Notificaciones al Wallet</h2>
             <p class="text-xs text-gray-500 mb-5">
-                Configura el mensaje que recibirá el cliente al registrar cada visita.
                 <strong>Android</strong> muestra el mensaje vía Google Wallet.
                 <strong>iPhone</strong> muestra el mensaje como notificación push de Apple Wallet.
                 Sin mensaje personalizado, ambas plataformas envían la notificación de sistema estándar.
             </p>
 
-            <div class="space-y-5">
-                <div class="flex items-start gap-3">
-                    <input type="hidden" name="visit_notification_enabled" value="0">
-                    <input type="checkbox"
-                           id="visit_notification_enabled"
-                           name="visit_notification_enabled"
-                           value="1"
-                           @checked($notifEnabled)
-                           class="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                           onchange="toggleNotificationFields(this.checked)">
-                    <div>
-                        <label for="visit_notification_enabled" class="text-sm font-medium text-gray-700">
-                            Activar mensaje personalizado por visita
-                        </label>
-                        <p class="text-xs text-gray-400 mt-0.5">
-                            Se enviará a Google Wallet (Android) y Apple Wallet (iPhone) cuando haya pass registrado.
-                        </p>
-                    </div>
-                </div>
-
-                <div id="notification-fields"
-                     class="space-y-4 pl-7 border-l-2 border-indigo-100 @if(!$notifEnabled) hidden @endif">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Mensaje de visita</label>
-                        <textarea id="visit-notification-message"
-                                  name="visit_notification_message"
-                                  rows="2"
-                                  maxlength="300"
-                                  placeholder="Llevas {stamps_collected}/{total_stamps} visitas. ¡Gracias por visitarnos, {first_name}!"
-                                  oninput="updateNotificationPreview(this.value)"
-                                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none @error('visit_notification_message') border-red-400 @enderror">{{ old('visit_notification_message', $program?->visit_notification_message) }}</textarea>
-                        <p class="mt-1 text-xs text-gray-400">
-                            Una sola oración. Variables:
-                            <code class="bg-gray-100 px-1 rounded">{first_name}</code>
-                            <code class="bg-gray-100 px-1 rounded">{stamps_collected}</code>
-                            <code class="bg-gray-100 px-1 rounded">{total_stamps}</code>
-                            <code class="bg-gray-100 px-1 rounded">{remaining_stamps}</code>
-                            <code class="bg-gray-100 px-1 rounded">{business_name}</code>
-                            <code class="bg-gray-100 px-1 rounded">{next_reward}</code>
-                        </p>
-                        @error('visit_notification_message')
-                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <input type="hidden" name="google_wallet_notification_mode" value="custom_message_only">
-
-                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Vista previa</p>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {{-- Android --}}
-                            <div>
-                                <p class="text-xs text-gray-400 mb-1.5">Android · Google Wallet</p>
-                                <div class="flex items-start gap-2 bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                                    <div class="w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">G</div>
-                                    <div class="min-w-0">
-                                        <p class="font-semibold text-gray-800 text-xs">Google Wallet</p>
-                                        <p id="preview-android-msg" class="text-gray-600 text-xs mt-0.5 line-clamp-2">
-                                            {{ old('visit_notification_message', $program?->visit_notification_message) ?: 'Llevas {stamps_collected}/{total_stamps} visitas.' }}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            {{-- iPhone --}}
-                            <div>
-                                <p class="text-xs text-gray-400 mb-1.5">iPhone · Apple Wallet</p>
-                                <div class="flex items-start gap-2 bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                                    <div class="w-7 h-7 bg-black rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">A</div>
-                                    <div class="min-w-0">
-                                        <p class="font-semibold text-gray-800 text-xs">Apple Wallet</p>
-                                        <p id="preview-apple-msg" class="text-gray-500 text-xs mt-0.5 truncate">
-                                            {{ old('visit_notification_message', $program?->visit_notification_message) ?: 'Llevas {stamps_collected}/{total_stamps} visitas.' }}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- ─── 6. Google Wallet ───────────────────────────────────────────── --}}
-        <div class="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 class="text-base font-semibold text-gray-900 mb-1">Google Wallet</h2>
-            <p class="text-xs text-gray-500 mb-5">Configuración avanzada para la integración con Google Wallet.</p>
-
-            <div class="max-w-sm">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Class Suffix</label>
-                <input type="text" name="google_class_suffix"
-                       value="{{ old('google_class_suffix', $program?->google_class_suffix) }}"
-                       placeholder="Ej: mi-negocio-lealtad"
-                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Mensaje que se le enviará al usuario cada vez que realice una visita
+                </label>
+                <textarea id="visit-notification-message"
+                          name="visit_notification_message"
+                          rows="2"
+                          maxlength="300"
+                          placeholder="Llevas {stamps_collected}/{total_stamps} visitas. ¡Gracias por visitarnos, {first_name}!"
+                          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none @error('visit_notification_message') border-red-400 @enderror">{{ old('visit_notification_message', $program?->visit_notification_message) }}</textarea>
                 <p class="mt-1 text-xs text-gray-400">
-                    Opcional. Identificador único de la clase en Google Wallet. Si no se especifica, se genera automáticamente.
+                    Variables:
+                    <code class="bg-gray-100 px-1 rounded">{first_name}</code>
+                    <code class="bg-gray-100 px-1 rounded">{stamps_collected}</code>
+                    <code class="bg-gray-100 px-1 rounded">{total_stamps}</code>
+                    <code class="bg-gray-100 px-1 rounded">{remaining_stamps}</code>
+                    <code class="bg-gray-100 px-1 rounded">{business_name}</code>
+                    <code class="bg-gray-100 px-1 rounded">{next_reward}</code>
                 </p>
+                @error('visit_notification_message')
+                    <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                @enderror
             </div>
+
+            <input type="hidden" name="google_wallet_notification_mode" value="custom_message_only">
         </div>
+
 
         {{-- ─── Submit ─────────────────────────────────────────────────────── --}}
         <div class="flex justify-end pb-4">
@@ -522,6 +467,11 @@ function switchImgVersion(v) {
     const labelV1 = document.getElementById('label_v1');
     const labelV2 = document.getElementById('label_v2');
 
+    // Both panels have a "pass_background_image" file input. Only one can hold a file at
+    // submit time, so clear the one that just became hidden/inactive.
+    const bgV1 = document.getElementById('bg-image-v1');
+    const bgV2 = document.getElementById('bg-image-v2');
+
     if (v === '1') {
         v1Panel.classList.remove('hidden');
         v2Panel.classList.add('hidden');
@@ -529,6 +479,7 @@ function switchImgVersion(v) {
         labelV1.classList.remove('border-gray-200');
         labelV2.classList.remove('border-indigo-500', 'bg-indigo-50');
         labelV2.classList.add('border-gray-200');
+        if (bgV2) bgV2.value = '';
     } else {
         v2Panel.classList.remove('hidden');
         v1Panel.classList.add('hidden');
@@ -536,6 +487,7 @@ function switchImgVersion(v) {
         labelV2.classList.remove('border-gray-200');
         labelV1.classList.remove('border-indigo-500', 'bg-indigo-50');
         labelV1.classList.add('border-gray-200');
+        if (bgV1) bgV1.value = '';
     }
 }
 
@@ -544,21 +496,6 @@ function switchImgVersion(v) {
 function toggleBirthdayFields(enabled) {
     const fields = document.getElementById('birthday-fields');
     if (fields) fields.classList.toggle('hidden', !enabled);
-}
-
-// ── Notification fields ───────────────────────────────────────────────────────
-
-function toggleNotificationFields(enabled) {
-    const fields = document.getElementById('notification-fields');
-    if (fields) fields.classList.toggle('hidden', !enabled);
-}
-
-function updateNotificationPreview(value) {
-    const msg = value.trim() || 'Llevas {stamps_collected}/{total_stamps} visitas.';
-    const androidEl = document.getElementById('preview-android-msg');
-    const appleEl   = document.getElementById('preview-apple-msg');
-    if (androidEl) androidEl.textContent = msg;
-    if (appleEl)   appleEl.textContent   = msg;
 }
 
 // ── Total stamps label sync ───────────────────────────────────────────────────

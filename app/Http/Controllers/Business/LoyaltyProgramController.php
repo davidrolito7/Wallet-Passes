@@ -50,12 +50,9 @@ class LoyaltyProgramController extends Controller
             'birthday_reward_title'       => ['nullable', 'string', 'max:255'],
             'birthday_reward_description' => ['nullable', 'string'],
             // Notifications
-            'visit_notification_enabled'      => ['boolean'],
             'visit_notification_title'        => ['nullable', 'string', 'max:100'],
             'visit_notification_message'      => ['nullable', 'string', 'max:500'],
             'google_wallet_notification_mode' => ['nullable', 'in:balance_update_only,custom_message_only,both'],
-            // Google Wallet
-            'google_class_suffix' => ['nullable', 'string', 'max:255'],
         ]);
 
         $program = LoyaltyProgram::firstOrNew(['business_id' => $business->id]);
@@ -75,7 +72,9 @@ class LoyaltyProgramController extends Controller
         $data['business_id'] = $business->id;
         $data['is_active']   = $request->boolean('is_active', true);
 
-        $data['visit_notification_enabled'] = $request->boolean('visit_notification_enabled');
+        // No hay un toggle explícito en el formulario: el mensaje personalizado se activa
+        // simplemente con que el campo tenga contenido.
+        $data['visit_notification_enabled'] = filled($data['visit_notification_message'] ?? null);
         $data['birthday_reward_enabled']    = $request->boolean('birthday_reward_enabled');
 
         if (! $data['visit_notification_enabled']) {
