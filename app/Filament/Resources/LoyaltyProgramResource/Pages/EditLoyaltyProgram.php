@@ -16,4 +16,15 @@ class EditLoyaltyProgram extends EditRecord
             DeleteAction::make(),
         ];
     }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        // Mantiene sincronizado el espejo heredado loyalty_programs.reward_title con el
+        // primer sistema de premios (ver CreateLoyaltyProgram::mutateFormDataBeforeCreate).
+        $firstSystem = $data['prizeSystems'][0] ?? null;
+        $data['reward_title']       = $firstSystem['reward_title'] ?? '—';
+        $data['reward_description'] = $firstSystem['reward_description'] ?? null;
+
+        return $data;
+    }
 }

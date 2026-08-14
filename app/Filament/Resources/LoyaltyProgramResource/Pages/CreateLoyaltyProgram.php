@@ -16,6 +16,14 @@ class CreateLoyaltyProgram extends CreateRecord
             $data['google_class_suffix'] = 'loyalty-' . Str::slug($data['name']) . '-' . now()->timestamp;
         }
 
+        // loyalty_programs.reward_title es una columna heredada (NOT NULL, sin default) que
+        // espeja el premio del primer sistema de premios. El Repeater de prizeSystems guarda
+        // directo en la tabla relacionada y nunca la asigna en el padre, así que sin esto el
+        // insert falla en cualquier programa nuevo.
+        $firstSystem = $data['prizeSystems'][0] ?? null;
+        $data['reward_title']       = $firstSystem['reward_title'] ?? '—';
+        $data['reward_description'] = $firstSystem['reward_description'] ?? null;
+
         return $data;
     }
 }
