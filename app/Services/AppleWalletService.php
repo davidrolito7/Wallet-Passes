@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Builders\Apple\LoyaltyStoreCardBuilder;
+use App\Models\Business;
 use App\Models\LoyaltyCard;
 use Illuminate\Support\Facades\Storage;
 use Spatie\LaravelMobilePass\Enums\BarcodeType;
@@ -79,9 +80,9 @@ class AppleWalletService
         }
 
         // Logo del negocio
-        $logoPath = $this->fetchLogoPath($business->logoPublicUrl());
-        if ($logoPath) {
-            $builder->setLogoImage($logoPath);
+        $logoPaths = $this->logoPathsForBusiness($business);
+        if ($logoPaths) {
+            $builder->setLogoImage(...$logoPaths);
         }
 
         // Versión con stickers: genera strip dinámico con cuadrícula de sellos 3×N
@@ -381,6 +382,70 @@ class AppleWalletService
         }
 
         return null;
+    }
+
+    /**
+     * Genera el logo del negocio en @1x/@2x/@3x (PNG transparente, sin recorte forzado)
+     * para el frente del pase. setLogoImage() acepta las tres resoluciones, pero si solo se
+     * le da una (como antes), Apple Wallet la trata como @1x y la estira en pantallas Retina
+     * (2x/3x) — de ahí el borroneo. Nunca se agranda más allá de la resolución de origen.
+     * Se cachea por hash del logo para no regenerar en cada llamada.
+     */
+    private function logoPathsForBusiness(Business $business): array
+    {
+        $sourcePath = $this->fetchLogoPath($business->logoPublicUrl());
+
+        if (! $sourcePath || ! file_exists($sourcePath)) {
+            return [];
+        }
+
+        $dir = storage_path('app/apple-pass/logos-hires');
+        is_dir($dir) || mkdir($dir, 0755, true);
+
+        $mtime    = (string) (@filemtime($sourcePath) ?: 0);
+        $cacheKey = md5($sourcePath . '@' . $mtime);
+
+        $paths = [
+            1 => $dir . '/logo_' . $cacheKey . '.png',
+            2 => $dir . '/logo_' . $cacheKey . '@2x.png',
+            3 => $dir . '/logo_' . $cacheKey . '@3x.png',
+        ];
+
+        if (file_exists($paths[1])) {
+            return array_values($paths);
+        }
+
+        $raw = @file_get_contents($sourcePath);
+        $src = $raw !== false ? @imagecreatefromstring($raw) : false;
+
+        if (! $src) {
+            return [];
+        }
+
+        $srcW = imagesx($src);
+        $srcH = imagesy($src);
+
+        // Máximo recomendado por Apple: ~160×50 pt @1x. Se respeta ese límite en cada
+        // densidad, pero el ratio nunca supera 1.0 para no agrandar más allá del original.
+        foreach ([1 => 160, 2 => 320, 3 => 480] as $scale => $maxW) {
+            $maxH  = 50 * $scale;
+            $ratio = min($maxW / $srcW, $maxH / $srcH, 1.0);
+            $w     = max(1, (int) round($srcW * $ratio));
+            $h     = max(1, (int) round($srcH * $ratio));
+
+            $canvas = imagecreatetruecolor($w, $h);
+            imagealphablending($canvas, false);
+            imagesavealpha($canvas, true);
+            imagefill($canvas, 0, 0, imagecolorallocatealpha($canvas, 0, 0, 0, 127));
+            imagecopyresampled($canvas, $src, 0, 0, 0, 0, $w, $h, $srcW, $srcH);
+
+            imagepng($canvas, $paths[$scale], 9);
+            imagedestroy($canvas);
+        }
+
+        imagedestroy($src);
+
+        return array_values($paths);
     }
 
     /**
