@@ -39,6 +39,7 @@ class BusinessProfileController extends Controller
             'location_relevant_text'  => ['nullable', 'string', 'max:128'],
             // Imágenes para Wallet (viven en LoyaltyProgram, no en Business)
             'total_stamps'           => ['required', 'integer', 'min:1', 'max:50'],
+            'background_mode'        => ['nullable', 'in:image,color'],
             'pass_background_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
             'filled_stamp_image'    => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
             'empty_stamp_image'     => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
@@ -63,7 +64,22 @@ class BusinessProfileController extends Controller
         if ($program) {
             $programData = ['total_stamps' => $data['total_stamps']];
 
-            foreach (['pass_background_image', 'filled_stamp_image', 'empty_stamp_image'] as $imageField) {
+            // "Color sólido de marca" (Versión 2): sin archivo que subir — se limpia la imagen
+            // guardada para que el renderizador use el color primario del negocio, que ya es
+            // su comportamiento por defecto cuando pass_background_image está vacío.
+            if (($data['background_mode'] ?? 'image') === 'color') {
+                if ($program->pass_background_image) {
+                    Storage::disk('public')->delete($program->pass_background_image);
+                }
+                $programData['pass_background_image'] = null;
+            } elseif ($request->hasFile('pass_background_image')) {
+                if ($program->pass_background_image) {
+                    Storage::disk('public')->delete($program->pass_background_image);
+                }
+                $programData['pass_background_image'] = $request->file('pass_background_image')->store('programs/stamps', 'public');
+            }
+
+            foreach (['filled_stamp_image', 'empty_stamp_image'] as $imageField) {
                 if ($request->hasFile($imageField)) {
                     if ($program->$imageField) {
                         Storage::disk('public')->delete($program->$imageField);

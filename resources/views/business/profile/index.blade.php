@@ -10,6 +10,8 @@
     // Versión 2 siempre usa una cuadrícula fija de 10 sellos, así que ese modo no
     // pide el total — solo la Versión 1 (contador de texto) lo necesita.
     $totalStamps = old('total_stamps', $imgVersion === '2' ? 10 : ($program?->total_stamps ?? 10));
+    // Versión 2: fondo con imagen o color sólido de marca (por defecto, el primario).
+    $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 'color');
 @endphp
 <form method="POST" action="{{ route('business.profile.save') }}" enctype="multipart/form-data" class="space-y-8 max-w-3xl">
     @csrf
@@ -258,6 +260,7 @@
             <div class="max-w-sm">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Imagen de Fondo</label>
                 <input type="file" id="bg-image-v1" name="pass_background_image" accept="image/png,image/jpeg,image/webp"
+                       {{ $imgVersion === '1' ? '' : 'disabled' }}
                        class="block w-full text-sm text-gray-500
                               file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0
                               file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700
@@ -282,21 +285,52 @@
                    {{ $imgVersion === '2' ? '' : 'disabled' }}>
             <p class="text-xs text-gray-400 mb-4">Este diseño siempre usa 10 sellos fijos.</p>
 
-            <div class="max-w-sm mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Imagen de Fondo</label>
-                <input type="file" id="bg-image-v2" name="pass_background_image" accept="image/png,image/jpeg,image/webp"
-                       class="block w-full text-sm text-gray-500
-                              file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0
-                              file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700
-                              hover:file:bg-indigo-100">
-                @if($program?->pass_background_image)
-                    <div class="mt-2 flex items-center gap-2">
-                        <img src="{{ Storage::disk('public')->url($program->pass_background_image) }}"
-                             alt="Fondo" class="h-12 w-20 object-cover rounded border border-gray-200">
-                        <span class="text-xs text-gray-400">Imagen actual</span>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Fondo</label>
+
+                <div class="flex gap-4 mb-3">
+                    <label class="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer select-none">
+                        <input type="radio" id="bg_mode_image" name="background_mode" value="image"
+                               {{ $bgModeV2 === 'image' ? 'checked' : '' }}
+                               {{ $imgVersion === '2' ? '' : 'disabled' }}
+                               class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                               onchange="switchBgMode('image')">
+                        Imagen
+                    </label>
+                    <label class="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer select-none">
+                        <input type="radio" id="bg_mode_color" name="background_mode" value="color"
+                               {{ $bgModeV2 === 'color' ? 'checked' : '' }}
+                               {{ $imgVersion === '2' ? '' : 'disabled' }}
+                               class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                               onchange="switchBgMode('color')">
+                        Color sólido de marca
+                    </label>
+                </div>
+
+                <div id="bg-mode-image-fields" class="max-w-sm {{ $bgModeV2 === 'color' ? 'hidden' : '' }}">
+                    <input type="file" id="bg-image-v2" name="pass_background_image" accept="image/png,image/jpeg,image/webp"
+                           {{ ($imgVersion === '2' && $bgModeV2 === 'image') ? '' : 'disabled' }}
+                           class="block w-full text-sm text-gray-500
+                                  file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0
+                                  file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700
+                                  hover:file:bg-indigo-100">
+                    @if($program?->pass_background_image)
+                        <div class="mt-2 flex items-center gap-2">
+                            <img src="{{ Storage::disk('public')->url($program->pass_background_image) }}"
+                                 alt="Fondo" class="h-12 w-20 object-cover rounded border border-gray-200">
+                            <span class="text-xs text-gray-400">Imagen actual</span>
+                        </div>
+                    @endif
+                    <p class="mt-1 text-xs text-gray-400">PNG/JPEG/WebP · Recomendado 1032×450 px · Se muestra detrás de la cuadrícula de sellos</p>
+                </div>
+
+                <div id="bg-mode-color-fields" class="{{ $bgModeV2 === 'image' ? 'hidden' : '' }}">
+                    <div class="flex items-center gap-2">
+                        <span class="h-8 w-8 rounded-lg border border-gray-200" style="background-color: {{ $business->primary_color ?? '#1a1a2e' }}"></span>
+                        <span class="text-sm text-gray-600">Usa tu color primario de marca ({{ $business->primary_color ?? '#1a1a2e' }})</span>
                     </div>
-                @endif
-                <p class="mt-1 text-xs text-gray-400">PNG/JPEG/WebP · Recomendado 1032×450 px · Se muestra detrás de la cuadrícula de sellos</p>
+                    <p class="mt-1 text-xs text-gray-400">Se ajusta solo si cambias el color primario en "Colores de Marca".</p>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -361,8 +395,10 @@ function switchImgVersion(v) {
     const labelV1 = document.getElementById('label_v1');
     const labelV2 = document.getElementById('label_v2');
 
-    // Both panels have a "pass_background_image" file input. Only one can hold a file at
-    // submit time, so clear the one that just became hidden/inactive.
+    // Both panels have a "pass_background_image" file input sharing the same name. An empty
+    // file input still submits a (blank) part under that name, and the one later in the DOM
+    // wins in $_FILES — so clearing .value is not enough, the inactive one must be disabled
+    // (disabled inputs are excluded from submission entirely).
     const bgV1 = document.getElementById('bg-image-v1');
     const bgV2 = document.getElementById('bg-image-v2');
 
@@ -371,6 +407,9 @@ function switchImgVersion(v) {
     const stampsV1 = document.getElementById('total-stamps-input');
     const stampsV2 = document.getElementById('total-stamps-v2');
 
+    const bgModeImage = document.getElementById('bg_mode_image');
+    const bgModeColor = document.getElementById('bg_mode_color');
+
     if (v === '1') {
         v1Panel.classList.remove('hidden');
         v2Panel.classList.add('hidden');
@@ -378,7 +417,10 @@ function switchImgVersion(v) {
         labelV1.classList.remove('border-gray-200');
         labelV2.classList.remove('border-indigo-500', 'bg-indigo-50');
         labelV2.classList.add('border-gray-200');
-        if (bgV2) bgV2.value = '';
+        if (bgV2) { bgV2.value = ''; bgV2.disabled = true; }
+        if (bgV1) bgV1.disabled = false;
+        if (bgModeImage) bgModeImage.disabled = true;
+        if (bgModeColor) bgModeColor.disabled = true;
         if (stampsV1) { stampsV1.disabled = false; stampsV1.required = true; }
         if (stampsV2) stampsV2.disabled = true;
     } else {
@@ -388,9 +430,31 @@ function switchImgVersion(v) {
         labelV2.classList.remove('border-gray-200');
         labelV1.classList.remove('border-indigo-500', 'bg-indigo-50');
         labelV1.classList.add('border-gray-200');
-        if (bgV1) bgV1.value = '';
+        if (bgV1) { bgV1.value = ''; bgV1.disabled = true; }
+        if (bgModeImage) bgModeImage.disabled = false;
+        if (bgModeColor) bgModeColor.disabled = false;
+        // bg-image-v2 only re-enables if "Imagen" is the selected background mode.
+        if (bgV2) bgV2.disabled = !!bgModeColor?.checked;
         if (stampsV1) { stampsV1.disabled = true; stampsV1.required = false; }
         if (stampsV2) stampsV2.disabled = false;
+    }
+}
+
+// ── Background mode switch (Versión 2 only) ────────────────────────────────────
+
+function switchBgMode(mode) {
+    const imageFields = document.getElementById('bg-mode-image-fields');
+    const colorFields = document.getElementById('bg-mode-color-fields');
+    const bgV2 = document.getElementById('bg-image-v2');
+
+    if (mode === 'image') {
+        imageFields?.classList.remove('hidden');
+        colorFields?.classList.add('hidden');
+        if (bgV2) bgV2.disabled = false;
+    } else {
+        imageFields?.classList.add('hidden');
+        colorFields?.classList.remove('hidden');
+        if (bgV2) { bgV2.value = ''; bgV2.disabled = true; }
     }
 }
 </script>
