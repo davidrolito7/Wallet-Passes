@@ -85,6 +85,19 @@ class AppleWalletService
             $builder->setLogoImage(...$logoPaths);
         }
 
+        // Ubicación: la tarjeta aparece sola en la pantalla de bloqueo al acercarse al negocio.
+        // Se fija solo al crear el pase — el builder no ofrece forma de reemplazar ubicaciones
+        // ya guardadas en un pase existente (addLocation() siempre agrega, nunca reemplaza), así
+        // que si el negocio cambia su dirección después, los pases ya instalados no se enteran.
+        if ($business->hasLocation()) {
+            $builder->addLocation(
+                latitude: (float) $business->latitude,
+                longitude: (float) $business->longitude,
+                relevantText: $business->location_relevant_text,
+            );
+            $builder->setMaxDistance($business->location_radius_meters ?? 150);
+        }
+
         // Versión con stickers: genera strip dinámico con cuadrícula de sellos 3×N
         // Versión de texto: usa la imagen de fondo estática (fallback "1/10")
         if ($program->filled_stamp_image || $program->empty_stamp_image) {

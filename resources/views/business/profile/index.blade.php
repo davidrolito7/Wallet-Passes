@@ -144,6 +144,61 @@
         </div>
     </div>
 
+    {{-- Ubicación --}}
+    <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-1">Ubicación</h2>
+        <p class="text-xs text-gray-500 mb-5">
+            Si la configuras, la tarjeta aparece sola en la pantalla de bloqueo cuando el cliente se acerca a tu negocio
+            (Apple Wallet y Google Wallet). Es opcional.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Latitud</label>
+                <input type="number" step="any" name="latitude"
+                       value="{{ old('latitude', $business->latitude) }}"
+                       placeholder="19.432608"
+                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('latitude') border-red-400 @enderror">
+                @error('latitude') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Longitud</label>
+                <input type="number" step="any" name="longitude"
+                       value="{{ old('longitude', $business->longitude) }}"
+                       placeholder="-99.133209"
+                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('longitude') border-red-400 @enderror">
+                @error('longitude') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-gray-400">
+                    ¿No las sabes? Busca tu negocio en
+                    <a href="https://www.google.com/maps/search/{{ urlencode($business->name) }}" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">Google Maps</a>,
+                    clic derecho sobre el pin y elige "¿Qué hay aquí?" para copiar las coordenadas.
+                </p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Radio de activación</label>
+                <input type="number" name="location_radius_meters"
+                       value="{{ old('location_radius_meters', $business->location_radius_meters ?? 150) }}"
+                       min="10" max="5000"
+                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('location_radius_meters') border-red-400 @enderror">
+                <p class="mt-1 text-xs text-gray-400">En metros. Solo aplica a Apple Wallet — Google Wallet decide el radio automáticamente.</p>
+                @error('location_radius_meters') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Mensaje al acercarse</label>
+                <input type="text" name="location_relevant_text"
+                       value="{{ old('location_relevant_text', $business->location_relevant_text) }}"
+                       placeholder="¡Bienvenido! Muestra tu tarjeta de lealtad."
+                       maxlength="128"
+                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('location_relevant_text') border-red-400 @enderror">
+                <p class="mt-1 text-xs text-gray-400">Solo aplica a Apple Wallet. Máximo 128 caracteres.</p>
+                @error('location_relevant_text') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+            </div>
+        </div>
+    </div>
+
     {{-- Imágenes para Wallet --}}
     <div class="bg-white rounded-xl border border-gray-200 p-6">
         <h2 class="text-base font-semibold text-gray-900 mb-1">Imágenes para Wallet</h2>

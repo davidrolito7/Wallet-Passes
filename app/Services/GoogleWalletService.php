@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Business;
 use App\Models\LoyaltyCard;
 use App\Models\LoyaltyProgram;
 use App\Services\StampImageService;
@@ -35,7 +36,7 @@ class GoogleWalletService
     {
         $business = $program->business;
 
-        LoyaltyPassClass::make($program->googleClassSuffix())
+        $class = LoyaltyPassClass::make($program->googleClassSuffix())
             ->setIssuerName($business->name)
             ->setProgramName($program->name)
             ->setProgramLogoUrl($business->logoPublicUrl() ?? config('app.url').'/images/default-logo.png')
@@ -45,6 +46,37 @@ class GoogleWalletService
             ->setAccountIdLabel('Tarjeta')
             ->setBackgroundColor($business->primary_color)
             ->save();
+
+        $this->syncMerchantLocation($class->id(), $business);
+    }
+
+    /**
+     * Ubicación para que la tarjeta aparezca sola en la pantalla de bloqueo al acercarse al
+     * negocio. El builder de Spatie no expone merchantLocations, así que se manda directo por
+     * PATCH. Vive en LoyaltyClass (no en el objeto), aplica a todas las tarjetas del programa,
+     * y Google decide el radio de activación por su cuenta — solo se le da la coordenada.
+     */
+    private function syncMerchantLocation(string $classId, Business $business): void
+    {
+        if ($business->latitude === null || $business->longitude === null) {
+            return;
+        }
+
+        try {
+            $this->client->patchClass('loyaltyClass', $classId, [
+                'merchantLocations' => [
+                    [
+                        'latitude'  => (float) $business->latitude,
+                        'longitude' => (float) $business->longitude,
+                    ],
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('GoogleWallet: merchantLocations patch failed', [
+                'class_id' => $classId,
+                'error'    => $e->getMessage(),
+            ]);
+        }
     }
 
     public function createPass(LoyaltyCard $card): MobilePass

@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Business;
 
 use App\Http\Controllers\Controller;
 use App\Models\LoyaltyProgram;
+use App\Services\GoogleWalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class BusinessProfileController extends Controller
@@ -30,6 +32,11 @@ class BusinessProfileController extends Controller
             'contact_phone'   => ['nullable', 'string', 'max:50'],
             'instagram_url'   => ['nullable', 'url', 'max:255'],
             'logo_url'        => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
+            // Ubicación (relevancia en pantalla de bloqueo)
+            'latitude'                => ['nullable', 'numeric', 'min:-90', 'max:90'],
+            'longitude'               => ['nullable', 'numeric', 'min:-180', 'max:180'],
+            'location_radius_meters'  => ['nullable', 'integer', 'min:10', 'max:5000'],
+            'location_relevant_text'  => ['nullable', 'string', 'max:128'],
             // Imágenes para Wallet (viven en LoyaltyProgram, no en Business)
             'total_stamps'           => ['required', 'integer', 'min:1', 'max:50'],
             'pass_background_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
@@ -66,6 +73,19 @@ class BusinessProfileController extends Controller
             }
 
             $program->fill($programData)->save();
+
+            // La ubicación vive en el negocio, pero Google Wallet la guarda en la clase del
+            // programa (merchantLocations). Se resincroniza aquí para que el cambio aplique
+            // sin esperar a que se emita una tarjeta nueva. Un fallo aquí no debe tumbar el
+            // guardado del perfil — solo se registra.
+            try {
+                app(GoogleWalletService::class)->ensureClass($program);
+            } catch (\Throwable $e) {
+                Log::warning('BusinessProfile: no se pudo sincronizar la ubicación con Google Wallet', [
+                    'business_id' => $business->id,
+                    'error'       => $e->getMessage(),
+                ]);
+            }
         }
 
         return redirect()->route('business.profile')->with('success', 'Información del negocio actualizada.');

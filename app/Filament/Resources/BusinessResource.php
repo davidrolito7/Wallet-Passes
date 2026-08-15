@@ -110,6 +110,41 @@ class BusinessResource extends Resource
                     ->placeholder('https://instagram.com/tu_negocio')
                     ->maxLength(255),
             ])->columns(3),
+
+            Section::make('Ubicación')
+                ->description('Si se configura, la tarjeta aparece como notificación fija en la pantalla de bloqueo cuando el cliente se acerca al negocio (Apple Wallet y Google Wallet).')
+                ->schema([
+                    TextInput::make('latitude')
+                        ->label('Latitud')
+                        ->numeric()
+                        ->minValue(-90)
+                        ->maxValue(90)
+                        ->placeholder('19.432608')
+                        ->helperText('En Google Maps: clic derecho sobre el negocio → copiar coordenadas.'),
+
+                    TextInput::make('longitude')
+                        ->label('Longitud')
+                        ->numeric()
+                        ->minValue(-180)
+                        ->maxValue(180)
+                        ->placeholder('-99.133209'),
+
+                    TextInput::make('location_radius_meters')
+                        ->label('Radio de activación')
+                        ->numeric()
+                        ->minValue(10)
+                        ->maxValue(5000)
+                        ->default(150)
+                        ->suffix('metros')
+                        ->helperText('Solo aplica a Apple Wallet. Google Wallet decide el radio automáticamente.'),
+
+                    TextInput::make('location_relevant_text')
+                        ->label('Mensaje al acercarse')
+                        ->maxLength(128)
+                        ->placeholder('¡Bienvenido! Muestra tu tarjeta de lealtad.')
+                        ->helperText('Solo aplica a Apple Wallet. Máximo 128 caracteres.')
+                        ->columnSpanFull(),
+                ])->columns(3),
         ]);
     }
 
