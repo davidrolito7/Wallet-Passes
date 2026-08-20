@@ -137,6 +137,7 @@ class AppleWalletService
         }
 
         $program     = $card->loyaltyProgram;
+        $business    = $program->business;
         $hasStickers = (bool) ($program->filled_stamp_image || $program->empty_stamp_image);
 
         // Actualizar imágenes sin disparar APNS (el push lo gestiona el builder abajo).
@@ -151,6 +152,19 @@ class AppleWalletService
 
         // Usar el builder para actualizar todos los campos en un único save() → un único push APNS.
         $builder = $pass->builder();
+
+        // Backfill de ubicación: si el negocio tiene coordenadas pero el pase ya instalado no
+        // las tiene (p. ej. se agregaron después de emitir el pase), se agregan aquí una sola
+        // vez. addLocation() siempre suma y nunca reemplaza, así que solo se llama cuando el
+        // pase todavía no tiene ninguna ubicación guardada, para no duplicarla en cada sello.
+        if ($business->hasLocation() && ! $this->passHasLocation($pass)) {
+            $builder->addLocation(
+                latitude: (float) $business->latitude,
+                longitude: (float) $business->longitude,
+                relevantText: $business->location_relevant_text,
+            );
+            $builder->setMaxDistance($business->location_radius_meters ?? 150);
+        }
 
         if ($hasStickers) {
             $builder->updateField('card_id', 'Vista ' . $card->stamps_collected . '/' . $program->total_stamps);
@@ -314,6 +328,11 @@ class AppleWalletService
         }
 
         return false;
+    }
+
+    private function passHasLocation(MobilePass $pass): bool
+    {
+        return filled($pass->content['locations'] ?? null);
     }
 
     private function prizesListText(LoyaltyCard $card): string
