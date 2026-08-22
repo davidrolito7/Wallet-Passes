@@ -147,45 +147,39 @@
     </div>
 
     {{-- Ubicación --}}
+    @php $locationEnabled = old('location_enabled', $business->location_enabled); @endphp
     <div class="bg-white rounded-xl border border-gray-200 p-6">
         <h2 class="text-base font-semibold text-gray-900 mb-1">Ubicación</h2>
         <p class="text-xs text-gray-500 mb-5">
-            Si la configuras, la tarjeta aparece sola en la pantalla de bloqueo cuando el cliente se acerca a tu negocio
-            (Apple Wallet y Google Wallet). Es opcional.
+            Actívala para que la tarjeta aparezca sola en la pantalla de bloqueo cuando el cliente se acerca a tu negocio
+            (Apple Wallet y Google Wallet). Apple limita esto a un radio real de ~100 m sin importar la ubicación configurada.
         </p>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Latitud</label>
-                <input type="number" step="any" name="latitude"
-                       value="{{ old('latitude', $business->latitude) }}"
-                       placeholder="19.432608"
-                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('latitude') border-red-400 @enderror">
-                @error('latitude') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-            </div>
+        <label class="flex items-center gap-3 cursor-pointer select-none mb-5">
+            <input type="checkbox" name="location_enabled" value="1"
+                   {{ $locationEnabled ? 'checked' : '' }}
+                   onchange="document.getElementById('location-fields').classList.toggle('hidden', !this.checked)"
+                   class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+            <span class="text-sm font-medium text-gray-800">Activar notificación automática al acercarse</span>
+        </label>
 
+        <div id="location-fields" class="grid grid-cols-1 gap-5 {{ $locationEnabled ? '' : 'hidden' }}">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Longitud</label>
-                <input type="number" step="any" name="longitude"
-                       value="{{ old('longitude', $business->longitude) }}"
-                       placeholder="-99.133209"
-                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('longitude') border-red-400 @enderror">
-                @error('longitude') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                <label class="block text-sm font-medium text-gray-700 mb-1">Enlace de Google Maps</label>
+                <input type="url" name="maps_link" value="{{ old('maps_link') }}"
+                       placeholder="https://maps.app.goo.gl/xxxxx"
+                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('maps_link') border-red-400 @enderror">
+                @error('maps_link') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-gray-400">
-                    ¿No las sabes? Busca tu negocio en
+                    Abre tu negocio en
                     <a href="https://www.google.com/maps/search/{{ urlencode($business->name) }}" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">Google Maps</a>,
-                    clic derecho sobre el pin y elige "¿Qué hay aquí?" para copiar las coordenadas.
+                    toca "Compartir" → "Copiar enlace" y pégalo aquí. Extraemos las coordenadas automáticamente.
                 </p>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Radio de activación</label>
-                <input type="number" name="location_radius_meters"
-                       value="{{ old('location_radius_meters', $business->location_radius_meters ?? 150) }}"
-                       min="10" max="5000"
-                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('location_radius_meters') border-red-400 @enderror">
-                <p class="mt-1 text-xs text-gray-400">En metros. Solo aplica a Apple Wallet — Google Wallet decide el radio automáticamente.</p>
-                @error('location_radius_meters') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                @if($business->latitude && $business->longitude)
+                    <p class="mt-1 text-xs text-gray-400">
+                        Ubicación actual guardada: {{ $business->latitude }}, {{ $business->longitude }} — deja este campo vacío para conservarla.
+                    </p>
+                @endif
             </div>
 
             <div>

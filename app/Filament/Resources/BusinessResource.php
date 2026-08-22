@@ -112,39 +112,32 @@ class BusinessResource extends Resource
             ])->columns(3),
 
             Section::make('Ubicación')
-                ->description('Si se configura, la tarjeta aparece como notificación fija en la pantalla de bloqueo cuando el cliente se acerca al negocio (Apple Wallet y Google Wallet).')
+                ->description('Si se activa, la tarjeta aparece como notificación fija en la pantalla de bloqueo cuando el cliente se acerca al negocio (Apple Wallet y Google Wallet). Apple limita esto a un radio real de ~100 m sin importar la ubicación configurada.')
                 ->schema([
-                    TextInput::make('latitude')
-                        ->label('Latitud')
-                        ->numeric()
-                        ->minValue(-90)
-                        ->maxValue(90)
-                        ->placeholder('19.432608')
-                        ->helperText('En Google Maps: clic derecho sobre el negocio → copiar coordenadas.'),
+                    Toggle::make('location_enabled')
+                        ->label('Activar notificación al acercarse')
+                        ->live()
+                        ->columnSpanFull(),
 
-                    TextInput::make('longitude')
-                        ->label('Longitud')
-                        ->numeric()
-                        ->minValue(-180)
-                        ->maxValue(180)
-                        ->placeholder('-99.133209'),
-
-                    TextInput::make('location_radius_meters')
-                        ->label('Radio de activación')
-                        ->numeric()
-                        ->minValue(10)
-                        ->maxValue(5000)
-                        ->default(150)
-                        ->suffix('metros')
-                        ->helperText('Solo aplica a Apple Wallet. Google Wallet decide el radio automáticamente.'),
+                    TextInput::make('maps_link')
+                        ->label('Enlace de Google Maps')
+                        ->url()
+                        ->placeholder('https://maps.app.goo.gl/xxxxx')
+                        ->helperText(fn (?Business $record) => $record?->latitude && $record?->longitude
+                            ? "Ubicación actual guardada: {$record->latitude}, {$record->longitude}. Deja este campo vacío para conservarla."
+                            : 'Abre el negocio en Google Maps, toca "Compartir" → "Copiar enlace" y pégalo aquí. Extraemos las coordenadas automáticamente.')
+                        ->dehydrated(false)
+                        ->visible(fn (callable $get) => (bool) $get('location_enabled'))
+                        ->columnSpanFull(),
 
                     TextInput::make('location_relevant_text')
                         ->label('Mensaje al acercarse')
                         ->maxLength(128)
                         ->placeholder('¡Bienvenido! Muestra tu tarjeta de lealtad.')
                         ->helperText('Solo aplica a Apple Wallet. Máximo 128 caracteres.')
+                        ->visible(fn (callable $get) => (bool) $get('location_enabled'))
                         ->columnSpanFull(),
-                ])->columns(3),
+                ]),
         ]);
     }
 

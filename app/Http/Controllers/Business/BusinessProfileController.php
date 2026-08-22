@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Business;
 
 use App\Http\Controllers\Controller;
 use App\Models\LoyaltyProgram;
+use App\Services\GoogleMapsLinkResolver;
 use App\Services\GoogleWalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,9 +34,8 @@ class BusinessProfileController extends Controller
             'instagram_url'   => ['nullable', 'url', 'max:255'],
             'logo_url'        => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
             // Ubicación (relevancia en pantalla de bloqueo)
-            'latitude'                => ['nullable', 'numeric', 'min:-90', 'max:90'],
-            'longitude'               => ['nullable', 'numeric', 'min:-180', 'max:180'],
-            'location_radius_meters'  => ['nullable', 'integer', 'min:10', 'max:5000'],
+            'location_enabled'        => ['sometimes', 'boolean'],
+            'maps_link'               => ['nullable', 'url'],
             'location_relevant_text'  => ['nullable', 'string', 'max:128'],
             // Imágenes para Wallet (viven en LoyaltyProgram, no en Business)
             'total_stamps'           => ['required', 'integer', 'min:1', 'max:50'],
@@ -44,6 +44,27 @@ class BusinessProfileController extends Controller
             'filled_stamp_image'    => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
             'empty_stamp_image'     => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
         ]);
+
+        // Ubicación: el checkbox desactivado no viaja en el request, así que se normaliza
+        // explícitamente. Un enlace de Maps reemplaza las coordenadas; si se deja vacío se
+        // conservan las ya guardadas (siempre que existan).
+        $data['location_enabled'] = $request->boolean('location_enabled');
+        unset($data['maps_link']);
+
+        if ($data['location_enabled']) {
+            if ($request->filled('maps_link')) {
+                try {
+                    [$data['latitude'], $data['longitude']] = app(GoogleMapsLinkResolver::class)
+                        ->extract($request->input('maps_link'));
+                } catch (\Throwable $e) {
+                    return back()->withErrors(['maps_link' => $e->getMessage()])->withInput();
+                }
+            } elseif (! $business->latitude || ! $business->longitude) {
+                return back()
+                    ->withErrors(['maps_link' => 'Pega el enlace de Google Maps de tu negocio para activar esta opción.'])
+                    ->withInput();
+            }
+        }
 
         if ($request->hasFile('logo_url')) {
             if ($business->logo_url && ! str_starts_with($business->logo_url, 'http')) {

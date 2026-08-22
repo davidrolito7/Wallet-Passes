@@ -58,7 +58,7 @@ class GoogleWalletService
      */
     private function syncMerchantLocation(string $classId, Business $business): void
     {
-        if ($business->latitude === null || $business->longitude === null) {
+        if (! $business->hasLocation()) {
             return;
         }
 

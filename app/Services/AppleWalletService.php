@@ -12,6 +12,11 @@ use App\Services\AppleStampImageService;
 
 class AppleWalletService
 {
+    // Apple compara maxDistance contra su propio tope interno por tipo de pase y usa el
+    // menor de los dos; para storeCard ese tope es ~100 m, así que pedir un radio mayor
+    // al negocio no cambia nada en la práctica.
+    private const STORE_CARD_MAX_DISTANCE_METERS = 100;
+
     public function isConfigured(): bool
     {
         return filled(config('mobile-pass.apple.type_identifier'))
@@ -95,7 +100,7 @@ class AppleWalletService
                 longitude: (float) $business->longitude,
                 relevantText: $business->location_relevant_text,
             );
-            $builder->setMaxDistance($business->location_radius_meters ?? 150);
+            $builder->setMaxDistance(self::STORE_CARD_MAX_DISTANCE_METERS);
         }
 
         // Versión con stickers: genera strip dinámico con cuadrícula de sellos 3×N
@@ -163,7 +168,7 @@ class AppleWalletService
                 longitude: (float) $business->longitude,
                 relevantText: $business->location_relevant_text,
             );
-            $builder->setMaxDistance($business->location_radius_meters ?? 150);
+            $builder->setMaxDistance(self::STORE_CARD_MAX_DISTANCE_METERS);
         }
 
         if ($hasStickers) {
