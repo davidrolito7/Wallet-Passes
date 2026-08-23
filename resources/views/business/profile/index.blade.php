@@ -99,25 +99,7 @@
 
         </div>
 
-        {{-- Vista previa de colores --}}
-        <div class="mt-5 border border-gray-200 rounded-xl overflow-hidden">
-            <div id="color-preview" class="p-4 flex items-center justify-between transition-colors"
-                 style="background-color: {{ $business->primary_color ?? '#1a1a2e' }}">
-                <div>
-                    <p class="text-xs font-medium opacity-70 transition-colors" id="preview-label"
-                       style="color: {{ $business->label_color ?? '#cccccc' }}">PROGRAMA</p>
-                    <p class="text-base font-bold transition-colors" id="preview-name"
-                       style="color: {{ $business->secondary_color ?? '#ffffff' }}">{{ $business->name }}</p>
-                </div>
-                <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center"
-                     style="border-color: {{ $business->secondary_color ?? '#ffffff' }}20">
-                    <svg class="w-5 h-5" fill="none" stroke="{{ $business->secondary_color ?? '#ffffff' }}" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l14 9-14 9V3z"/>
-                    </svg>
-                </div>
-            </div>
-            <p class="text-xs text-gray-400 text-center py-1.5 bg-gray-50">Vista previa de colores</p>
-        </div>
+       
     </div>
 
     {{-- Contacto --}}
