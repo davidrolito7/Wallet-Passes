@@ -480,13 +480,19 @@ class AppleStampImageService
             $card->stamps_collected,
         ])), 0, 8);
 
-        return "apple_strip_{$program->id}_{$card->stamps_collected}of{$program->total_stamps}_{$hash}_{$scale}.png";
+        return "apple_strip_{$program->id}_{$card->id}_{$card->stamps_collected}of{$program->total_stamps}_{$hash}_{$scale}.png";
     }
 
     private function cleanupOldStrips(LoyaltyCard $card, array $keep): void
     {
+        // Con el card->id en el nombre, este glob solo puede matar archivos de ESTA tarjeta.
+        // Antes filtraba solo por program->id: al regenerar la imagen de un cliente, borraba
+        // de disco las imágenes ya cacheadas de TODOS los demás clientes del mismo programa
+        // (sus MobilePass.images en BD seguían apuntando ahí), y Apple lanza PKPassException
+        // al armar el .pkpass si el archivo referenciado ya no existe — eso es lo que corrompe
+        // el pase y deja de actualizarse hasta que a esa tarjeta le vuelven a sellar una visita.
         $dir     = $this->storageDir();
-        $pattern = "{$dir}/apple_strip_{$card->loyaltyProgram->id}_*.png";
+        $pattern = "{$dir}/apple_strip_{$card->loyaltyProgram->id}_{$card->id}_*.png";
         $keep    = array_map('realpath', $keep);
 
         foreach (glob($pattern) ?: [] as $file) {

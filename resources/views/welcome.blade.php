@@ -1627,33 +1627,33 @@
               <div class="marquee-track marquee-down">
                 <!-- Set 1 -->
                 <div class="pass-card">
-                  <img src="images/img1.png" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
+                  <img src="{{ asset('images/img1.png') }}" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
                 </div>
                 <div class="pass-card">
-                  <img src="images/img2.png" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
+                  <img src="{{ asset('images/img2.png') }}" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
                 </div>
                 <div class="pass-card">
-                  <img src="images/img3.png" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
+                  <img src="{{ asset('images/img3.png') }}" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
                 </div>
                 <!-- Set 2 (duplicado para loop continuo) -->
                 <div class="pass-card">
-                  <img src="images/img1.png" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
+                  <img src="{{ asset('images/img1.png') }}" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
                 </div>
                 <div class="pass-card">
-                  <img src="images/img2.png" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
+                  <img src="{{ asset('images/img2.png') }}" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
                 </div>
                 <div class="pass-card">
-                  <img src="images/img3.png" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
+                  <img src="{{ asset('images/img3.png') }}" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
                 </div>
                 <!-- Set 3 (duplicado para loop continuo) -->
                 <div class="pass-card">
-                  <img src="images/img1.png" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
+                  <img src="{{ asset('images/img1.png') }}" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
                 </div>
                 <div class="pass-card">
-                  <img src="images/img2.png" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
+                  <img src="{{ asset('images/img2.png') }}" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
                 </div>
                 <div class="pass-card">
-                  <img src="images/img3.png" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
+                  <img src="{{ asset('images/img3.png') }}" alt="Ejemplo de tarjeta de lealtad en Apple Wallet" loading="lazy">
                 </div>
               </div>
             </div>
@@ -1688,7 +1688,7 @@
       <p class="eyebrow" style="text-align:center;">Producto</p>
       <div class="product-showcase reveal">
         <div class="product-showcase-media">
-          <img src="images/publicidad1.png" alt="Cliente mostrando su tarjeta de lealtad digital en una cafetería"
+          <img src="{{ asset('images/publicidad1.png') }}" alt="Cliente mostrando su tarjeta de lealtad digital en una cafetería"
             loading="lazy">
         </div>
         <div>
@@ -1787,7 +1787,7 @@
           </div>
         </div>
         <div class="workspace-img">
-          <img src="images/ejemplo1.png" alt="Tarjeta de lealtad guardada en Apple Wallet" loading="lazy">
+          <img src="{{ asset('images/ejemplo1.png') }}" alt="Tarjeta de lealtad guardada en Apple Wallet" loading="lazy">
         </div>
       </div>
     </div>
