@@ -7,6 +7,22 @@
     <title>Uzumaki — Tarjetas digitales que conectan experiencias</title>
     <meta name="description"
         content="Crea tarjetas de lealtad digitales disponibles al instante en Apple Wallet y Google Wallet." />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="{{ url('/') }}" />
+    <meta property="og:title" content="Uzumaki — Tarjetas digitales que conectan experiencias" />
+    <meta property="og:description"
+        content="Crea tarjetas de lealtad digitales disponibles al instante en Apple Wallet y Google Wallet." />
+    <meta property="og:image" content="{{ asset('images/publicidad1.png') }}" />
+    <meta property="og:image:width" content="1402" />
+    <meta property="og:image:height" content="1122" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Uzumaki — Tarjetas digitales que conectan experiencias" />
+    <meta name="twitter:description"
+        content="Crea tarjetas de lealtad digitales disponibles al instante en Apple Wallet y Google Wallet." />
+    <meta name="twitter:image" content="{{ asset('images/publicidad1.png') }}" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

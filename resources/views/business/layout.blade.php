@@ -18,7 +18,7 @@
 
 @php
     $authBusiness = auth()->guard('business')->user();
-    $brandColor   = $authBusiness->primary_color ?? '#4f46e5';
+    $brandColor   = '#0774c3';
 @endphp
 
 {{-- ── Mobile overlay ───────────────────────────────────────────────────── --}}
