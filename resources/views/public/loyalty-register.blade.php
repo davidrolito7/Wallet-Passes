@@ -70,6 +70,12 @@
             -webkit-appearance: none;
             appearance: none;
             min-width: 0;
+            /* Sin appearance nativo, iOS calcula la altura desde el contenido interno del
+               control, que mide distinto vacío que con un valor puesto (por eso "saltaba" al
+               tocarlo). Se fija la altura para que sea igual en ambos estados: 2×py-2.5 (20px)
+               + line-height de text-sm (20px) + borde (2px) = 42px, igual que los inputs de texto. */
+            height: 2.625rem;
+            line-height: 1.25rem;
         }
     </style>
 </head>
