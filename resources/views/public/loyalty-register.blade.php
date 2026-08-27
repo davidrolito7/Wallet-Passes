@@ -176,7 +176,7 @@
 
                     <button id="submit-btn"
                         type="submit"
-                        class="w-full bg-[#0774c3] hover:bg-[#054686] text-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#0774c3] focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                        class="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed">
                         Obtener mi tarjeta de lealtad
                     </button>
 
