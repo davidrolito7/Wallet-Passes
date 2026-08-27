@@ -43,6 +43,29 @@ class LoyaltyCard extends Model
         return trim($this->first_name . ' ' . $this->last_name);
     }
 
+    /**
+     * Nombre para mostrar en la tarjeta de Apple/Google Wallet: solo la primera palabra de
+     * nombre y apellido (si el cliente escribió varios), en Mayúscula Inicial. El registro en
+     * base de datos (first_name/last_name) conserva siempre lo que el cliente escribió completo.
+     */
+    public function walletHolderName(): string
+    {
+        return trim($this->firstWordTitleCase($this->first_name) . ' ' . $this->firstWordTitleCase($this->last_name));
+    }
+
+    private function firstWordTitleCase(?string $value): string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return '';
+        }
+
+        $firstWord = preg_split('/\s+/u', $value)[0];
+
+        return mb_convert_case($firstWord, MB_CASE_TITLE, 'UTF-8');
+    }
+
     public function loyaltyProgram(): BelongsTo
     {
         // withTrashed ensures soft-deleted programs still load on the card — avoids null crashes.

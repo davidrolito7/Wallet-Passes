@@ -91,7 +91,7 @@ class GoogleWalletService
         $pass = LoyaltyPassBuilder::make()
             ->setClass($program->googleClassSuffix())
             ->setAccountId('CARD-'.str_pad($card->id, 6, '0', STR_PAD_LEFT))
-            ->setAccountName($card->fullName())
+            ->setAccountName($card->walletHolderName())
             ->setBalanceString($this->balanceString($card))
             ->setBarcode(BarcodeType::Qr, $barcodeValue)
             ->save();

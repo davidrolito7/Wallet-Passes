@@ -56,7 +56,7 @@ class AppleWalletService
             // Header: nombre del negocio / vigencia de la tarjeta
             ->addHeaderField('validity', $headerValue, label: $business->name)
             // Secondary: miembro + contador de visitas solo cuando hay stickers
-            ->addSecondaryField('holder', $card->fullName(), label: 'Miembro')
+            ->addSecondaryField('holder', $card->walletHolderName(), label: 'Miembro')
             // Auxiliary: próximo premio
             ->addAuxiliaryField('next_reward', $this->nextRewardText($card), label: 'Próximo Premio')
             // Reverso de la tarjeta

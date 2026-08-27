@@ -62,6 +62,15 @@
         #loading-overlay.active {
             display: flex;
         }
+
+        /* iOS Safari dibuja el control de type="date" (texto + ícono de calendario) con su
+           propio chrome nativo, que no siempre respeta el border-radius/width del input y se
+           sale por la derecha. appearance:none lo desactiva y lo deja usar el box model normal. */
+        input[type="date"] {
+            -webkit-appearance: none;
+            appearance: none;
+            min-width: 0;
+        }
     </style>
 </head>
 
