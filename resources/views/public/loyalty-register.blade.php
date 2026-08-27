@@ -150,7 +150,7 @@
                         </div>
                     </div>
 
-                    <div class="overflow-hidden">
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento *</label>
                         <input type="date" name="birth_date" value="{{ old('birth_date') }}" required
                             max="{{ now()->subDay()->format('Y-m-d') }}"
@@ -161,7 +161,7 @@
 
                     <button id="submit-btn"
                         type="submit"
-                        class="w-full bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                        class="w-full bg-[#0774c3] hover:bg-[#054686] text-white font-semibold py-3 px-4 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#0774c3] focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed">
                         Obtener mi tarjeta de lealtad
                     </button>
 
