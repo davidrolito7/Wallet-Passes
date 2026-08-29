@@ -302,7 +302,7 @@ function buildRedeemed(d) {
             </div>
             <div class="flex-1 min-w-0">
                 <p class="text-base font-semibold text-gray-900 truncate">${d.name}</p>
-                <p class="text-xs text-gray-500 mt-0.5">Tarjeta reiniciada · 0 / ${d.total} visitas</p>
+                <p class="text-xs text-gray-500 mt-0.5">Nuevo ciclo · ${d.stamps} / ${d.total} visitas</p>
             </div>
         </div>
 
@@ -317,7 +317,7 @@ function buildRedeemed(d) {
             <div class="flex items-start gap-3 bg-indigo-50 border border-indigo-100 rounded-xl p-3">
                 <span class="text-2xl leading-none">🎯</span>
                 <div>
-                    <p class="text-sm font-semibold text-indigo-800">Nuevo ciclo iniciado</p>
+                    <p class="text-sm font-semibold text-indigo-800">Primer sello del nuevo ciclo</p>
                     <p class="text-sm text-indigo-700 font-medium mt-0.5">Ahora acumula para: ${d.next_reward}</p>
                 </div>
             </div>

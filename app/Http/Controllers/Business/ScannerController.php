@@ -37,10 +37,11 @@ class ScannerController extends Controller
         $program = $card->loyaltyProgram;
 
         // La tarjeta ya se completó (10/10) y la vuelven a escanear: esto es el cliente
-        // canjeando su premio en el mostrador, no una visita nueva. Se reinicia la tarjeta y
-        // se avanza al siguiente sistema de premios (o se repite el mismo si solo hay uno).
+        // canjeando su premio Y registrando la visita del nuevo ciclo en el mismo escaneo.
+        // Se reinicia la tarjeta con el primer sello ya puesto y se avanza al siguiente
+        // sistema de premios (o se repite el mismo si solo hay uno configurado).
         if ($card->is_completed) {
-            $redemption = app(LoyaltyService::class)->redeemReward($card, redeemedBy: 'scanner');
+            $redemption = app(LoyaltyService::class)->redeemReward($card, redeemedBy: 'scanner', restampCount: 1);
             $card       = $card->fresh(['loyaltyProgram.prizeSystems.milestones']);
 
             return response()->json([
@@ -50,7 +51,7 @@ class ScannerController extends Controller
                 'redeemed_reward' => $redemption->reward_title,
                 'stamps'          => $card->stamps_collected,
                 'total'           => $program->total_stamps,
-                'is_completed'    => false,
+                'is_completed'    => $card->is_completed,
                 'next_reward'     => $card->resolvedPrizeSystem()?->reward_title ?? $program->reward_title,
             ]);
         }

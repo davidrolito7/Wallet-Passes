@@ -115,8 +115,12 @@ class LoyaltyService
     /**
      * Redeem the final program reward. Advances to the next prize system,
      * cycling back to the first when all systems have been completed.
+     *
+     * $restampCount lets the same action leave the new cycle already started (e.g. a QR
+     * rescan of a completed card counts as both the redemption AND that visit's stamp) —
+     * one DB write, one wallet push, instead of redeeming and then stamping separately.
      */
-    public function redeemReward(LoyaltyCard $card, ?string $redeemedBy = null): RewardRedemption
+    public function redeemReward(LoyaltyCard $card, ?string $redeemedBy = null, int $restampCount = 0): RewardRedemption
     {
         $program       = $card->loyaltyProgram;
         $currentSystem = $card->resolvedPrizeSystem();
@@ -140,14 +144,27 @@ class LoyaltyService
             $nextSystem = $program->prizeSystems()->orderBy('sort_order')->first();
         }
 
+        $newStamps = min(max($restampCount, 0), $program->total_stamps);
+
         $card->update([
-            'stamps_collected'        => 0,
-            'is_completed'            => false,
-            'completed_at'            => null,
+            'stamps_collected'        => $newStamps,
+            'is_completed'            => $newStamps >= $program->total_stamps,
+            'completed_at'            => $newStamps >= $program->total_stamps ? now() : null,
             'current_prize_system_id' => $nextSystem?->id,
+            'last_stamp_at'           => $newStamps > 0 ? now() : $card->last_stamp_at,
         ]);
 
-        $this->pushWalletUpdate($card->fresh());
+        if ($newStamps > 0) {
+            StampTransaction::create([
+                'loyalty_card_id' => $card->id,
+                'stamps_added'    => $newStamps,
+                'stamps_after'    => $newStamps,
+                'note'            => 'Nuevo ciclo tras canje de premio',
+                'recorded_by'     => $redeemedBy,
+            ]);
+        }
+
+        $this->pushWalletUpdate($card->fresh(), sendVisitMessage: $newStamps > 0);
 
         return $redemption;
     }
