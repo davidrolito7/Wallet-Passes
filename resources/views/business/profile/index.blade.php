@@ -5,7 +5,12 @@
 
 @section('content')
 @php
-$defaultImgVersion = ($program?->filled_stamp_image || $program?->empty_stamp_image) ? '2' : '1';
+// Si el programa ya usa Versión 1 explícitamente (tiene imagen de fondo y ningún sello
+// propio), se respeta esa elección. En cualquier otro caso — incluyendo un programa nuevo
+// sin nada configurado todavía — la preseleccionada es la Versión 2 (sellos visuales).
+$defaultImgVersion = ($program?->pass_background_image && ! $program?->filled_stamp_image && ! $program?->empty_stamp_image)
+    ? '1'
+    : '2';
 $imgVersion = old('image_version', $defaultImgVersion);
 // Versión 2 siempre usa una cuadrícula fija de 10 sellos, así que ese modo no
 // pide el total — solo la Versión 1 (contador de texto) lo necesita.
