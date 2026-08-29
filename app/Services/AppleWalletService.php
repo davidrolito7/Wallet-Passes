@@ -17,6 +17,9 @@ class AppleWalletService
     // al negocio no cambia nada en la práctica.
     private const STORE_CARD_MAX_DISTANCE_METERS = 100;
 
+    // Apple limita pass.json a un máximo de 10 ubicaciones por pase.
+    private const MAX_LOCATIONS_PER_PASS = 10;
+
     public function isConfigured(): bool
     {
         return filled(config('mobile-pass.apple.type_identifier'))
@@ -90,16 +93,21 @@ class AppleWalletService
             $builder->setLogoImage(...$logoPaths);
         }
 
-        // Ubicación: la tarjeta aparece sola en la pantalla de bloqueo al acercarse al negocio.
-        // Se fija solo al crear el pase — el builder no ofrece forma de reemplazar ubicaciones
-        // ya guardadas en un pase existente (addLocation() siempre agrega, nunca reemplaza), así
-        // que si el negocio cambia su dirección después, los pases ya instalados no se enteran.
-        if ($business->hasLocation()) {
-            $builder->addLocation(
-                latitude: (float) $business->latitude,
-                longitude: (float) $business->longitude,
-                relevantText: $business->location_relevant_text,
-            );
+        // Ubicaciones: la tarjeta aparece sola en la pantalla de bloqueo al acercarse a
+        // cualquiera de los locales del negocio (hasta 10, tope de Apple). Se fija solo al
+        // crear el pase — el builder no ofrece forma de reemplazar ubicaciones ya guardadas en
+        // un pase existente (addLocation() siempre agrega, nunca reemplaza), así que si el
+        // negocio cambia sus locales después, los pases ya instalados no se enteran.
+        $locations = $business->activeLocations()->take(self::MAX_LOCATIONS_PER_PASS)->get();
+
+        if ($locations->isNotEmpty()) {
+            foreach ($locations as $location) {
+                $builder->addLocation(
+                    latitude: (float) $location->latitude,
+                    longitude: (float) $location->longitude,
+                    relevantText: $location->relevant_text,
+                );
+            }
             $builder->setMaxDistance(self::STORE_CARD_MAX_DISTANCE_METERS);
         }
 
@@ -158,17 +166,24 @@ class AppleWalletService
         // Usar el builder para actualizar todos los campos en un único save() → un único push APNS.
         $builder = $pass->builder();
 
-        // Backfill de ubicación: si el negocio tiene coordenadas pero el pase ya instalado no
-        // las tiene (p. ej. se agregaron después de emitir el pase), se agregan aquí una sola
-        // vez. addLocation() siempre suma y nunca reemplaza, así que solo se llama cuando el
-        // pase todavía no tiene ninguna ubicación guardada, para no duplicarla en cada sello.
-        if ($business->hasLocation() && ! $this->passHasLocation($pass)) {
-            $builder->addLocation(
-                latitude: (float) $business->latitude,
-                longitude: (float) $business->longitude,
-                relevantText: $business->location_relevant_text,
-            );
-            $builder->setMaxDistance(self::STORE_CARD_MAX_DISTANCE_METERS);
+        // Backfill de ubicaciones: si el negocio tiene locales configurados pero el pase ya
+        // instalado no tiene ninguno (p. ej. se agregaron después de emitir el pase), se
+        // agregan aquí una sola vez. addLocation() siempre suma y nunca reemplaza, así que solo
+        // se llama cuando el pase todavía no tiene ninguna ubicación guardada, para no
+        // duplicarlas en cada sello.
+        if (! $this->passHasLocation($pass)) {
+            $locations = $business->activeLocations()->take(self::MAX_LOCATIONS_PER_PASS)->get();
+
+            if ($locations->isNotEmpty()) {
+                foreach ($locations as $location) {
+                    $builder->addLocation(
+                        latitude: (float) $location->latitude,
+                        longitude: (float) $location->longitude,
+                        relevantText: $location->relevant_text,
+                    );
+                }
+                $builder->setMaxDistance(self::STORE_CARD_MAX_DISTANCE_METERS);
+            }
         }
 
         if ($hasStickers) {

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\BusinessResource\Pages;
+use App\Filament\Resources\BusinessResource\RelationManagers\LocationsRelationManager;
 use App\Models\Business;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -110,34 +111,6 @@ class BusinessResource extends Resource
                     ->placeholder('https://instagram.com/tu_negocio')
                     ->maxLength(255),
             ])->columns(3),
-
-            Section::make('Ubicación')
-                ->description('Si se activa, la tarjeta aparece como notificación fija en la pantalla de bloqueo cuando el cliente se acerca al negocio (Apple Wallet y Google Wallet). Apple limita esto a un radio real de ~100 m sin importar la ubicación configurada.')
-                ->schema([
-                    Toggle::make('location_enabled')
-                        ->label('Activar notificación al acercarse')
-                        ->live()
-                        ->columnSpanFull(),
-
-                    TextInput::make('maps_link')
-                        ->label('Enlace de Google Maps')
-                        ->url()
-                        ->placeholder('https://maps.app.goo.gl/xxxxx')
-                        ->helperText(fn (?Business $record) => $record?->latitude && $record?->longitude
-                            ? "Ubicación actual guardada: {$record->latitude}, {$record->longitude}. Deja este campo vacío para conservarla."
-                            : 'Abre el negocio en Google Maps, toca "Compartir" → "Copiar enlace" y pégalo aquí. Extraemos las coordenadas automáticamente.')
-                        ->dehydrated(false)
-                        ->visible(fn (callable $get) => (bool) $get('location_enabled'))
-                        ->columnSpanFull(),
-
-                    TextInput::make('location_relevant_text')
-                        ->label('Mensaje al acercarse')
-                        ->maxLength(128)
-                        ->placeholder('¡Bienvenido! Muestra tu tarjeta de lealtad.')
-                        ->helperText('Solo aplica a Apple Wallet. Máximo 128 caracteres.')
-                        ->visible(fn (callable $get) => (bool) $get('location_enabled'))
-                        ->columnSpanFull(),
-                ]),
         ]);
     }
 
@@ -188,7 +161,9 @@ class BusinessResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            LocationsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

@@ -101,7 +101,7 @@
             </a>
 
             <div class="pt-3 pb-1 px-3">
-                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Operación</p>
+                <p class="text-xs font-semibold text-white/60 uppercase tracking-wider">Operación</p>
             </div>
 
             <a href="{{ route('business.scanner') }}"

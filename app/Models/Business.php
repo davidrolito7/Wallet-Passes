@@ -33,10 +33,6 @@ class Business extends Authenticatable
         'instagram_url',
         'website',
         'is_active',
-        'latitude',
-        'longitude',
-        'location_enabled',
-        'location_relevant_text',
     ];
 
     protected $hidden = [
@@ -46,17 +42,19 @@ class Business extends Authenticatable
     protected function casts(): array
     {
         return [
-            'is_active'        => 'boolean',
-            'password'         => 'hashed',
-            'latitude'         => 'decimal:7',
-            'longitude'        => 'decimal:7',
-            'location_enabled' => 'boolean',
+            'is_active' => 'boolean',
+            'password'  => 'hashed',
         ];
     }
 
-    public function hasLocation(): bool
+    public function locations(): HasMany
     {
-        return $this->location_enabled && $this->latitude !== null && $this->longitude !== null;
+        return $this->hasMany(BusinessLocation::class);
+    }
+
+    public function activeLocations(): HasMany
+    {
+        return $this->locations()->where('is_active', true);
     }
 
     public function logoPublicUrl(): ?string

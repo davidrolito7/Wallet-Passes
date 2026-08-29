@@ -51,25 +51,27 @@ class GoogleWalletService
     }
 
     /**
-     * Ubicación para que la tarjeta aparezca sola en la pantalla de bloqueo al acercarse al
-     * negocio. El builder de Spatie no expone merchantLocations, así que se manda directo por
-     * PATCH. Vive en LoyaltyClass (no en el objeto), aplica a todas las tarjetas del programa,
-     * y Google decide el radio de activación por su cuenta — solo se le da la coordenada.
+     * Ubicación(es) para que la tarjeta aparezca sola en la pantalla de bloqueo al acercarse a
+     * cualquiera de los locales del negocio. El builder de Spatie no expone merchantLocations,
+     * así que se manda directo por PATCH. Vive en LoyaltyClass (no en el objeto), aplica a todas
+     * las tarjetas del programa, y Google decide el radio de activación por su cuenta — solo se
+     * le da la lista de coordenadas. A diferencia de Apple, Google no documenta un tope de
+     * cantidad de ubicaciones por clase.
      */
     private function syncMerchantLocation(string $classId, Business $business): void
     {
-        if (! $business->hasLocation()) {
+        $locations = $business->activeLocations()->get();
+
+        if ($locations->isEmpty()) {
             return;
         }
 
         try {
             $this->client->patchClass('loyaltyClass', $classId, [
-                'merchantLocations' => [
-                    [
-                        'latitude'  => (float) $business->latitude,
-                        'longitude' => (float) $business->longitude,
-                    ],
-                ],
+                'merchantLocations' => $locations->map(fn ($location) => [
+                    'latitude'  => (float) $location->latitude,
+                    'longitude' => (float) $location->longitude,
+                ])->all(),
             ]);
         } catch (\Throwable $e) {
             Log::warning('GoogleWallet: merchantLocations patch failed', [

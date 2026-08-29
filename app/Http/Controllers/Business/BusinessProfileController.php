@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Business;
 
 use App\Http\Controllers\Controller;
+use App\Models\Business;
 use App\Models\LoyaltyProgram;
 use App\Services\GoogleMapsLinkResolver;
 use App\Services\GoogleWalletService;
@@ -16,6 +17,7 @@ class BusinessProfileController extends Controller
     public function show()
     {
         $business = Auth::guard('business')->user();
+        $business->load('locations');
         $program  = $business->loyaltyPrograms()->first();
 
         return view('business.profile.index', compact('business', 'program'));
@@ -33,10 +35,14 @@ class BusinessProfileController extends Controller
             'contact_phone'   => ['nullable', 'string', 'max:50'],
             'instagram_url'   => ['nullable', 'url', 'max:255'],
             'logo_url'        => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
-            // Ubicación (relevancia en pantalla de bloqueo)
-            'location_enabled'        => ['sometimes', 'boolean'],
-            'maps_link'               => ['nullable', 'url'],
-            'location_relevant_text'  => ['nullable', 'string', 'max:128'],
+            // Ubicaciones (relevancia en pantalla de bloqueo) — una o varias por negocio.
+            'locations'                  => ['nullable', 'array'],
+            'locations.*.id'             => ['nullable', 'integer'],
+            'locations.*.name'           => ['nullable', 'string', 'max:255'],
+            'locations.*.maps_link'      => ['nullable', 'url'],
+            'locations.*.relevant_text'  => ['nullable', 'string', 'max:128'],
+            'locations.*.is_active'      => ['sometimes'],
+            'locations.*.delete'         => ['sometimes'],
             // Imágenes para Wallet (viven en LoyaltyProgram, no en Business)
             'total_stamps'           => ['required', 'integer', 'min:1', 'max:50'],
             'background_mode'        => ['nullable', 'in:image,color'],
@@ -45,25 +51,15 @@ class BusinessProfileController extends Controller
             'empty_stamp_image'     => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
         ]);
 
-        // Ubicación: el checkbox desactivado no viaja en el request, así que se normaliza
-        // explícitamente. Un enlace de Maps reemplaza las coordenadas; si se deja vacío se
-        // conservan las ya guardadas (siempre que existan).
-        $data['location_enabled'] = $request->boolean('location_enabled');
-        unset($data['maps_link']);
+        // Ubicaciones: se resuelven todos los enlaces de Maps antes de tocar la base de datos,
+        // para no dejar guardados solo algunos locales si uno de los enlaces es inválido.
+        $locationRows = $data['locations'] ?? [];
+        unset($data['locations']);
 
-        if ($data['location_enabled']) {
-            if ($request->filled('maps_link')) {
-                try {
-                    [$data['latitude'], $data['longitude']] = app(GoogleMapsLinkResolver::class)
-                        ->extract($request->input('maps_link'));
-                } catch (\Throwable $e) {
-                    return back()->withErrors(['maps_link' => $e->getMessage()])->withInput();
-                }
-            } elseif (! $business->latitude || ! $business->longitude) {
-                return back()
-                    ->withErrors(['maps_link' => 'Pega el enlace de Google Maps de tu negocio para activar esta opción.'])
-                    ->withInput();
-            }
+        try {
+            $resolvedLocations = $this->resolveLocationRows($business, $locationRows);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['locations' => $e->getMessage()])->withInput();
         }
 
         if ($request->hasFile('logo_url')) {
@@ -76,6 +72,8 @@ class BusinessProfileController extends Controller
         }
 
         $business->fill($data)->save();
+
+        $this->applyLocations($business, $resolvedLocations);
 
         // Las imágenes para Wallet pertenecen al programa de lealtad del negocio. Si el
         // negocio todavía no crea su programa (página "Programa de Lealtad"), no hay dónde
@@ -126,5 +124,75 @@ class BusinessProfileController extends Controller
         }
 
         return redirect()->route('business.profile')->with('success', 'Información del negocio actualizada.');
+    }
+
+    /**
+     * Valida y resuelve cada fila de ubicación enviada desde el formulario (sin tocar la base
+     * de datos todavía), para poder rechazar el guardado completo si algún enlace de Maps es
+     * inválido en vez de dejar el negocio con locales a medio guardar.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, array{action: string, id: ?int, data: array<string, mixed>}>
+     */
+    private function resolveLocationRows(Business $business, array $rows): array
+    {
+        $resolver = app(GoogleMapsLinkResolver::class);
+        $resolved = [];
+
+        foreach ($rows as $row) {
+            $id       = isset($row['id']) ? (int) $row['id'] : null;
+            $delete   = filled($row['delete'] ?? null);
+            $mapsLink = trim((string) ($row['maps_link'] ?? ''));
+
+            if ($id && $delete) {
+                $resolved[] = ['action' => 'delete', 'id' => $id, 'data' => []];
+                continue;
+            }
+
+            // Fila nueva sin enlace: no hay nada que crear todavía, se ignora.
+            if (! $id && $mapsLink === '') {
+                continue;
+            }
+
+            $data = [
+                'name'          => $row['name'] ?? null,
+                'relevant_text' => $row['relevant_text'] ?? null,
+                'is_active'     => filled($row['is_active'] ?? null),
+            ];
+
+            if ($mapsLink !== '') {
+                try {
+                    [$data['latitude'], $data['longitude']] = $resolver->extract($mapsLink);
+                } catch (\Throwable $e) {
+                    throw new \RuntimeException(
+                        ($data['name'] ? "{$data['name']}: " : '').$e->getMessage()
+                    );
+                }
+            }
+
+            $resolved[] = ['action' => $id ? 'update' : 'create', 'id' => $id, 'data' => $data];
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * @param  array<int, array{action: string, id: ?int, data: array<string, mixed>}>  $resolvedLocations
+     */
+    private function applyLocations(Business $business, array $resolvedLocations): void
+    {
+        foreach ($resolvedLocations as $entry) {
+            if ($entry['action'] === 'delete') {
+                $business->locations()->where('id', $entry['id'])->delete();
+                continue;
+            }
+
+            if ($entry['action'] === 'update') {
+                $business->locations()->where('id', $entry['id'])->first()?->fill($entry['data'])->save();
+                continue;
+            }
+
+            $business->locations()->create($entry['data']);
+        }
     }
 }

@@ -133,53 +133,130 @@ $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 
         </div>
     </div>
 
-    {{-- Ubicación --}}
-    @php $locationEnabled = old('location_enabled', $business->location_enabled); @endphp
+    {{-- Ubicaciones --}}
+    @php $existingLocations = old('locations', $business->locations->map(fn ($l) => [
+        'id'            => $l->id,
+        'name'          => $l->name,
+        'lat'           => $l->latitude,
+        'lng'           => $l->longitude,
+        'relevant_text' => $l->relevant_text,
+        'is_active'     => $l->is_active,
+    ])->all()); @endphp
     <div class="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 class="text-base font-semibold text-gray-900 mb-1">Ubicación</h2>
+        <h2 class="text-base font-semibold text-gray-900 mb-1">Ubicaciones</h2>
         <p class="text-xs text-gray-500 mb-5">
-            Actívala para que la tarjeta aparezca sola en la pantalla de bloqueo cuando el cliente se acerca a tu negocio
-            (Apple Wallet y Google Wallet). Apple limita esto a un radio real de ~100 m sin importar la ubicación configurada.
+            Agrega uno o varios locales para que la tarjeta aparezca sola en la pantalla de bloqueo cuando el cliente se
+            acerca a cualquiera de ellos (Apple Wallet y Google Wallet). Apple limita esto a un radio real de ~100 m y a
+            un máximo de 10 locales por tarjeta, sin importar la ubicación configurada.
         </p>
 
-        <label class="flex items-center gap-3 cursor-pointer select-none mb-5">
-            <input type="checkbox" name="location_enabled" value="1"
-                {{ $locationEnabled ? 'checked' : '' }}
-                onchange="document.getElementById('location-fields').classList.toggle('hidden', !this.checked)"
-                class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-            <span class="text-sm font-medium text-gray-800">Activar notificación automática al acercarse</span>
-        </label>
+        @error('locations') <p class="mb-4 text-xs text-red-600">{{ $message }}</p> @enderror
 
-        <div id="location-fields" class="grid grid-cols-1 gap-5 {{ $locationEnabled ? '' : 'hidden' }}">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Enlace de Google Maps</label>
-                <input type="url" name="maps_link" value="{{ old('maps_link') }}"
-                    placeholder="https://maps.app.goo.gl/xxxxx"
-                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('maps_link') border-red-400 @enderror">
-                @error('maps_link') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                <p class="mt-1 text-xs text-gray-400">
-                    Abre tu negocio en
-                    <a href="https://www.google.com/maps/search/{{ urlencode($business->name) }}" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">Google Maps</a>,
-                    toca "Compartir" → "Copiar enlace" y pégalo aquí. Extraemos las coordenadas automáticamente.
-                </p>
-                @if($business->latitude && $business->longitude)
-                <p class="mt-1 text-xs text-gray-400">
-                    Ubicación actual guardada: {{ $business->latitude }}, {{ $business->longitude }} — deja este campo vacío para conservarla.
-                </p>
-                @endif
-            </div>
+        <div id="locations-list" class="space-y-4">
+            @foreach($existingLocations as $i => $loc)
+            <div class="location-row border border-gray-200 rounded-lg p-4" data-index="{{ $i }}">
+                <input type="hidden" name="locations[{{ $i }}][id]" value="{{ $loc['id'] ?? '' }}">
+                <input type="hidden" name="locations[{{ $i }}][delete]" value="" class="location-delete-flag">
 
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Mensaje al acercarse</label>
-                <input type="text" name="location_relevant_text"
-                    value="{{ old('location_relevant_text', $business->location_relevant_text) }}"
-                    placeholder="¡Bienvenido! Muestra tu tarjeta de lealtad."
-                    maxlength="128"
-                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('location_relevant_text') border-red-400 @enderror">
-                <p class="mt-1 text-xs text-gray-400">Solo aplica a Apple Wallet. Máximo 128 caracteres.</p>
-                @error('location_relevant_text') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                <div class="flex items-start justify-between gap-3 mb-3">
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del local</label>
+                        <input type="text" name="locations[{{ $i }}][name]" value="{{ $loc['name'] ?? '' }}"
+                            placeholder="Ej: Sucursal Centro"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <button type="button" onclick="removeLocationRow(this)"
+                        class="mt-6 text-xs font-medium text-red-600 hover:text-red-700 whitespace-nowrap">
+                        Eliminar
+                    </button>
+                </div>
+
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Enlace de Google Maps</label>
+                    <input type="url" name="locations[{{ $i }}][maps_link]" value="{{ $loc['maps_link'] ?? '' }}"
+                        placeholder="https://maps.app.goo.gl/xxxxx"
+                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <p class="mt-1 text-xs text-gray-400">
+                        Abre este local en
+                        <a href="https://www.google.com/maps/search/{{ urlencode($business->name.' '.($loc['name'] ?? '')) }}" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">Google Maps</a>,
+                        toca "Compartir" → "Copiar enlace" y pégalo aquí. Extraemos las coordenadas automáticamente.
+                    </p>
+                    @if(!empty($loc['lat']) && !empty($loc['lng']))
+                    <p class="mt-1 text-xs text-gray-400">
+                        Ubicación actual guardada: {{ $loc['lat'] }}, {{ $loc['lng'] }} — deja este campo vacío para conservarla.
+                    </p>
+                    @endif
+                </div>
+
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mensaje al acercarse</label>
+                    <input type="text" name="locations[{{ $i }}][relevant_text]"
+                        value="{{ $loc['relevant_text'] ?? '' }}"
+                        placeholder="¡Bienvenido! Muestra tu tarjeta de lealtad."
+                        maxlength="128"
+                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <p class="mt-1 text-xs text-gray-400">Solo aplica a Apple Wallet. Máximo 128 caracteres.</p>
+                </div>
+
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" name="locations[{{ $i }}][is_active]" value="1"
+                        {{ ($loc['is_active'] ?? true) ? 'checked' : '' }}
+                        class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                    <span class="text-sm text-gray-700">Notificación activa en este local</span>
+                </label>
             </div>
+            @endforeach
         </div>
+
+        <button type="button" onclick="addLocationRow()"
+            class="mt-4 text-sm font-medium text-indigo-600 hover:text-indigo-700">
+            + Agregar otra ubicación
+        </button>
+
+        <template id="location-row-template">
+            <div class="location-row border border-gray-200 rounded-lg p-4" data-index="__INDEX__">
+                <input type="hidden" name="locations[__INDEX__][id]" value="">
+                <input type="hidden" name="locations[__INDEX__][delete]" value="" class="location-delete-flag">
+
+                <div class="flex items-start justify-between gap-3 mb-3">
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del local</label>
+                        <input type="text" name="locations[__INDEX__][name]" value=""
+                            placeholder="Ej: Sucursal Centro"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <button type="button" onclick="removeLocationRow(this)"
+                        class="mt-6 text-xs font-medium text-red-600 hover:text-red-700 whitespace-nowrap">
+                        Eliminar
+                    </button>
+                </div>
+
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Enlace de Google Maps</label>
+                    <input type="url" name="locations[__INDEX__][maps_link]" value=""
+                        placeholder="https://maps.app.goo.gl/xxxxx"
+                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <p class="mt-1 text-xs text-gray-400">
+                        Abre este local en Google Maps, toca "Compartir" → "Copiar enlace" y pégalo aquí.
+                    </p>
+                </div>
+
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mensaje al acercarse</label>
+                    <input type="text" name="locations[__INDEX__][relevant_text]" value=""
+                        placeholder="¡Bienvenido! Muestra tu tarjeta de lealtad."
+                        maxlength="128"
+                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <p class="mt-1 text-xs text-gray-400">Solo aplica a Apple Wallet. Máximo 128 caracteres.</p>
+                </div>
+
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" name="locations[__INDEX__][is_active]" value="1" checked
+                        class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                    <span class="text-sm text-gray-700">Notificación activa en este local</span>
+                </label>
+            </div>
+        </template>
     </div>
 
     {{-- Imágenes para Wallet --}}
@@ -431,6 +508,34 @@ $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 
                 stampsV1.required = false;
             }
             if (stampsV2) stampsV2.disabled = false;
+        }
+    }
+
+    // ── Ubicaciones: agregar / quitar filas ────────────────────────────────────────
+
+    let nextLocationIndex = {{ count($existingLocations) }};
+
+    function addLocationRow() {
+        const template = document.getElementById('location-row-template');
+        const html = template.innerHTML.replaceAll('__INDEX__', nextLocationIndex);
+        nextLocationIndex++;
+
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = html.trim();
+        document.getElementById('locations-list').appendChild(wrapper.firstElementChild);
+    }
+
+    function removeLocationRow(button) {
+        const row = button.closest('.location-row');
+        const idInput = row.querySelector('input[name$="[id]"]');
+
+        if (idInput && idInput.value) {
+            // Ubicación ya guardada: se marca para borrar y se oculta, en vez de quitarla del
+            // DOM, para que el hidden [delete]=1 viaje en el submit.
+            row.querySelector('.location-delete-flag').value = '1';
+            row.classList.add('hidden');
+        } else {
+            row.remove();
         }
     }
 
