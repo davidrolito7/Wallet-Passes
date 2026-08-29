@@ -40,9 +40,11 @@ class LocationsRelationManager extends RelationManager
                         ->label('Enlace de Google Maps')
                         ->url()
                         ->placeholder('https://maps.app.goo.gl/xxxxx')
-                        ->helperText(fn (?BusinessLocation $record) => $record?->latitude && $record?->longitude
-                            ? "Ubicación actual guardada: {$record->latitude}, {$record->longitude}. Deja este campo vacío para conservarla."
-                            : 'Abre el local en Google Maps, toca "Compartir" → "Copiar enlace" y pégalo aquí. Extraemos las coordenadas automáticamente.')
+                        // El enlace original que se pegó no se guarda — solo las coordenadas ya
+                        // resueltas — así que al editar se precarga un enlace equivalente
+                        // generado desde lat/long, para que se vea que ya hay una ubicación guardada.
+                        ->afterStateHydrated(fn (TextInput $component, ?BusinessLocation $record) => $component->state($record?->mapsUrl()))
+                        ->helperText('Abre el local en Google Maps, toca "Compartir" → "Copiar enlace" y pégalo aquí. Extraemos las coordenadas automáticamente. Deja el enlace ya cargado tal cual para conservar la ubicación actual.')
                         ->required(fn (?BusinessLocation $record) => ! $record)
                         ->dehydrated(false)
                         ->columnSpanFull(),

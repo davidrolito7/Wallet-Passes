@@ -29,4 +29,18 @@ class BusinessLocation extends Model
     {
         return $this->belongsTo(Business::class);
     }
+
+    /**
+     * Enlace de Google Maps generado a partir de las coordenadas guardadas. Se usa para
+     * precargar el campo "Enlace de Google Maps" al editar, ya que no se guarda el enlace
+     * original que el usuario pegó — solo las coordenadas ya resueltas.
+     */
+    public function mapsUrl(): ?string
+    {
+        if ($this->latitude === null || $this->longitude === null) {
+            return null;
+        }
+
+        return "https://www.google.com/maps?q={$this->latitude},{$this->longitude}";
+    }
 }
