@@ -51,6 +51,7 @@ class LoyaltyService
             'birth_date'              => $birthDate,
             'holder_identifier'       => $holderIdentifier,
             'stamps_collected'        => 0,
+            'cycle_started_at'        => now(),
         ]);
 
         // Eager-load relations needed by wallet services (business color, icon, etc.)
@@ -151,6 +152,7 @@ class LoyaltyService
             'is_completed'            => $newStamps >= $program->total_stamps,
             'completed_at'            => $newStamps >= $program->total_stamps ? now() : null,
             'current_prize_system_id' => $nextSystem?->id,
+            'cycle_started_at'        => now(),
             'last_stamp_at'           => $newStamps > 0 ? now() : $card->last_stamp_at,
         ]);
 
@@ -167,6 +169,37 @@ class LoyaltyService
         $this->pushWalletUpdate($card->fresh(), sendVisitMessage: $newStamps > 0);
 
         return $redemption;
+    }
+
+    /**
+     * La tarjeta venció (pasó su ventana de vigencia) sin completarse y el cliente volvió a
+     * visitar: se reinicia el ciclo con el MISMO sistema de premios (no se avanza — no llegó
+     * a ganarlo) y esa visita cuenta como el primer sello del ciclo nuevo. No genera un
+     * RewardRedemption: no se canjeó ningún premio, solo venció el plazo.
+     *
+     * @return array{card: LoyaltyCard}
+     */
+    public function restartExpiredCycle(LoyaltyCard $card, ?string $recordedBy = null): array
+    {
+        $card->update([
+            'stamps_collected' => 1,
+            'is_completed'     => false,
+            'completed_at'     => null,
+            'cycle_started_at' => now(),
+            'last_stamp_at'    => now(),
+        ]);
+
+        StampTransaction::create([
+            'loyalty_card_id' => $card->id,
+            'stamps_added'    => 1,
+            'stamps_after'    => 1,
+            'note'            => 'Reinicio de ciclo por vigencia vencida',
+            'recorded_by'     => $recordedBy,
+        ]);
+
+        $this->pushWalletUpdate($card->fresh(), sendVisitMessage: true);
+
+        return ['card' => $card->fresh()];
     }
 
     /**

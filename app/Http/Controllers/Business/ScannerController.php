@@ -56,6 +56,24 @@ class ScannerController extends Controller
             ]);
         }
 
+        // La tarjeta venció (pasó su ventana de vigencia) sin completarse y el cliente
+        // volvió a visitar: se reinicia el ciclo con el MISMO sistema de premios (no se
+        // avanza, porque no llegó a ganarlo) y esa visita cuenta como el primer sello.
+        if ($card->isExpired()) {
+            app(LoyaltyService::class)->restartExpiredCycle($card, recordedBy: 'scanner');
+            $card = $card->fresh(['loyaltyProgram.prizeSystems.milestones']);
+
+            return response()->json([
+                'success'       => true,
+                'expired_reset' => true,
+                'name'          => $card->fullName(),
+                'stamps'        => $card->stamps_collected,
+                'total'         => $program->total_stamps,
+                'is_completed'  => false,
+                'next_reward'   => $card->resolvedPrizeSystem()?->reward_title ?? $program->reward_title,
+            ]);
+        }
+
         // Detectar cumpleaños antes de agregar el sello
         $isBirthday = $card->birth_date
             && $card->birth_date->format('m-d') === now()->format('m-d');

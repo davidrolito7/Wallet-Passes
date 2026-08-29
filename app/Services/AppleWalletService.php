@@ -61,15 +61,15 @@ class AppleWalletService
             ->addAuxiliaryField('next_reward', $this->nextRewardText($card), label: 'Próximo Premio')
             // Reverso de la tarjeta
             ->addBackField('program_name', filled($program->description) ? $program->description : $program->name, label: 'Términos')
-            ->addBackField('member_since', $card->created_at->translatedFormat('F Y'), label: 'Miembro desde')
+            ->addBackField('member_since', $card->created_at->format('d/m/Y'), label: 'Miembro desde')
             ->addBackField('prizes_list', $card->prizesListText(), label: 'Premios')
             ->withBackFieldRight('prizes_list')
             ->addBackField('contact', $this->contactText($card), label: 'Contacto')
             // wallet_msg: campo portador de notificaciones. Su valor es la última notificación
             // enviada. changeMessage '%@' hace que Apple muestre el valor como texto del push.
             ->addBackField('wallet_msg', '', label: 'Aviso')
-            ->addBackField('dev_footer', 'Alebrije Tech', label: 'Desarrollado por')
-            ->withBackFieldAttributedValue('dev_footer', "<a href='https://alebrijetech.com'>Alebrije Tech</a>")
+            ->addBackField('dev_footer', 'Uzumaki', label: 'Desarrollado por')
+            ->withBackFieldAttributedValue('dev_footer', "<a href='https://uzumakimx.com/'>Uzumaki</a>")
             ->setBarcode(BarcodeType::Qr, $barcodeValue);
 
         $contactAttr = $this->contactAttributedValue($card);

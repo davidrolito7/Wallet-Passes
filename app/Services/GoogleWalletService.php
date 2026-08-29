@@ -389,7 +389,7 @@ class GoogleWalletService
         if ($card->created_at) {
             $modules[] = [
                 'header' => 'Miembro desde',
-                'body'   => $card->created_at->translatedFormat('F Y'),
+                'body'   => $card->created_at->format('d/m/Y'),
                 'id'     => 'member_since',
             ];
         }

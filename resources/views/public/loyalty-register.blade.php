@@ -190,9 +190,16 @@
         </div>
     </main>
 
-    <footer class="pb-2 text-center">
-        <p class="text-xs text-white/30">
-            Desarrollado por <span class="font-semibold text-white/50">Fidelight</span> · © {{ date('Y') }}
+    <footer class="mt-8 bg-gray-950 border-t border-white/10 py-4 text-center">
+        <p class="text-xs text-white/50">
+            Desarrollado por
+            <a href="https://uzumakimx.com/"
+                class="font-semibold text-white/80"
+                target="_blank"
+                rel="noopener noreferrer">
+                Uzumaki
+            </a>
+            · © {{ date('Y') }}
         </p>
     </footer>
 
@@ -209,10 +216,10 @@
     </div>
 
     <script>
-        (function () {
-            var overlay   = document.getElementById('loading-overlay');
-            var form      = document.getElementById('register-form');
-            var btn       = document.getElementById('submit-btn');
+        (function() {
+            var overlay = document.getElementById('loading-overlay');
+            var form = document.getElementById('register-form');
+            var btn = document.getElementById('submit-btn');
             var submitted = false;
 
             function hideSpinner() {
@@ -223,7 +230,7 @@
                 form.reset();
             }
 
-            form.addEventListener('submit', function () {
+            form.addEventListener('submit', function() {
                 btn.disabled = true;
                 overlay.classList.add('active');
                 submitted = true;
@@ -231,7 +238,7 @@
 
             // iOS: Safari queda debajo del sheet de Apple Wallet.
             // Cuando el sheet se cierra la página recupera visibilidad → ocultamos el spinner.
-            document.addEventListener('visibilitychange', function () {
+            document.addEventListener('visibilitychange', function() {
                 if (document.visibilityState === 'visible') hideSpinner();
             });
 
@@ -239,7 +246,7 @@
             window.addEventListener('focus', hideSpinner);
 
             // Bfcache: botón «atrás» después de una redirección completa (ej. Google Wallet).
-            window.addEventListener('pageshow', function (e) {
+            window.addEventListener('pageshow', function(e) {
                 if (e.persisted) hideSpinner();
             });
         })();

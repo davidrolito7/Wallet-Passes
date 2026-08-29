@@ -22,6 +22,7 @@ class LoyaltyCard extends Model
         'stamps_collected',
         'is_completed',
         'completed_at',
+        'cycle_started_at',
         'last_stamp_at',
         'google_pass_id',
         'apple_pass_id',
@@ -33,6 +34,7 @@ class LoyaltyCard extends Model
             'stamps_collected' => 'integer',
             'is_completed'     => 'boolean',
             'completed_at'     => 'datetime',
+            'cycle_started_at' => 'datetime',
             'last_stamp_at'    => 'datetime',
             'birth_date'       => 'date',
         ];
@@ -221,14 +223,25 @@ class LoyaltyCard extends Model
         return $this->stamps_collected >= ($this->loyaltyProgram?->total_stamps ?? PHP_INT_MAX);
     }
 
+    /**
+     * Vigencia del ciclo actual. Se ancla a cycle_started_at (se reinicia con cada canje o
+     * reinicio por vencimiento) y no a created_at, que siempre debe reflejar la fecha real
+     * de alta del cliente ("Miembro desde" en la tarjeta).
+     */
     public function validUntil(): ?\Illuminate\Support\Carbon
     {
         $months = $this->loyaltyProgram?->validity_months;
+        $anchor = $this->cycle_started_at ?? $this->created_at;
 
-        if (! $months || ! $this->created_at) {
+        if (! $months || ! $anchor) {
             return null;
         }
 
-        return $this->created_at->copy()->addMonths($months);
+        return $anchor->copy()->addMonths($months);
+    }
+
+    public function isExpired(): bool
+    {
+        return (bool) $this->validUntil()?->isPast();
     }
 }

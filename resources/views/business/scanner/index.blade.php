@@ -168,6 +168,8 @@ function showResult(data) {
         content.innerHTML = buildError(data.error ?? 'Error desconocido');
     } else if (data.redeemed) {
         content.innerHTML = buildRedeemed(data);
+    } else if (data.expired_reset) {
+        content.innerHTML = buildExpiredReset(data);
     } else {
         content.innerHTML = buildSuccess(data);
     }
@@ -320,6 +322,37 @@ function buildRedeemed(d) {
                     <p class="text-sm font-semibold text-indigo-800">Primer sello del nuevo ciclo</p>
                     <p class="text-sm text-indigo-700 font-medium mt-0.5">Ahora acumula para: ${d.next_reward}</p>
                 </div>
+            </div>
+        </div>
+    `;
+}
+
+function buildExpiredReset(d) {
+    const initials = d.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+
+    return `
+        <div class="flex flex-col items-center mb-5">
+            <div class="w-16 h-16 bg-amber-500 rounded-full flex items-center justify-center mb-3 text-2xl shadow-lg">
+                <span>⏳</span>
+            </div>
+            <p class="text-lg font-bold text-gray-900">Vigencia vencida — ciclo reiniciado</p>
+        </div>
+
+        <div class="flex items-center gap-4 bg-gray-50 rounded-xl p-4 mb-4">
+            <div class="w-11 h-11 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span class="text-sm font-bold text-indigo-700">${initials}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-base font-semibold text-gray-900 truncate">${d.name}</p>
+                <p class="text-xs text-gray-500 mt-0.5">Nuevo ciclo · ${d.stamps} / ${d.total} visitas</p>
+            </div>
+        </div>
+
+        <div class="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-xl p-3">
+            <span class="text-2xl leading-none">🎯</span>
+            <div>
+                <p class="text-sm font-semibold text-amber-800">Su tarjeta anterior venció sin completarse</p>
+                <p class="text-sm text-amber-700 font-medium mt-0.5">Ahora acumula de nuevo para: ${d.next_reward}</p>
             </div>
         </div>
     `;
