@@ -18,7 +18,6 @@
                 'stamp_count'        => $m->stamp_count,
                 'reward_title'       => $m->reward_title,
                 'reward_description' => $m->reward_description ?? '',
-                'is_repeatable'      => $m->is_repeatable ?? false,
             ])->toArray(),
         ])->toArray();
     }
@@ -133,7 +132,7 @@
                                     <h3 class="text-sm font-semibold text-gray-700">Premios intermedios (hitos)</h3>
                                     <button type="button"
                                             onclick="addMilestone(this.closest('.system-card'))"
-                                            class="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
+                                            class="inline-flex items-center gap-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                         </svg>
@@ -170,14 +169,6 @@
                                                            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                                 </div>
                                                 <div class="flex items-center gap-3 pb-0.5">
-                                                    <label class="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
-                                                        <input type="checkbox"
-                                                               name="prize_systems[{{ $si }}][milestones][{{ $mi }}][is_repeatable]"
-                                                               value="1"
-                                                               {{ ($milestone['is_repeatable'] ?? false) ? 'checked' : '' }}
-                                                               class="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600">
-                                                        Repetible
-                                                    </label>
                                                     <button type="button"
                                                             onclick="removeMilestone(this)"
                                                             class="text-red-400 hover:text-red-600 transition-colors"
@@ -378,13 +369,6 @@ function milestoneTemplate(sysIdx, mIdx) {
                    class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
         </div>
         <div class="flex items-center gap-3 pb-0.5">
-            <label class="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
-                <input type="checkbox"
-                       name="prize_systems[${sysIdx}][milestones][${mIdx}][is_repeatable]"
-                       value="1"
-                       class="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600">
-                Repetible
-            </label>
             <button type="button"
                     onclick="removeMilestone(this)"
                     class="text-red-400 hover:text-red-600 transition-colors"
@@ -421,7 +405,7 @@ function systemTemplate(idx) {
                     <h3 class="text-sm font-semibold text-gray-700">Premios intermedios (hitos)</h3>
                     <button type="button"
                             onclick="addMilestone(this.closest('.system-card'))"
-                            class="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
+                            class="inline-flex items-center gap-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                         </svg>

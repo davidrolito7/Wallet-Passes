@@ -203,17 +203,19 @@ class ViewLoyaltyCard extends ViewRecord
                                 $prizeSystem = $record->resolvedPrizeSystem();
 
                                 $rows = ($prizeSystem?->milestones ?? collect())->map(fn ($m) => [
-                                    'visit'      => $m->stamp_count,
-                                    'reward'     => $m->reward_title,
-                                    'repeatable' => $m->is_repeatable ? 'Sí' : '—',
-                                    'status'     => $collected >= $m->stamp_count ? 'Obtenido' : 'Pendiente',
+                                    'visit'       => $m->stamp_count,
+                                    'reward'      => $m->reward_title,
+                                    'description' => $m->reward_description ?: '—',
+                                    'repeatable'  => $m->is_repeatable ? 'Sí' : '—',
+                                    'status'      => $collected >= $m->stamp_count ? 'Obtenido' : 'Pendiente',
                                 ])->toArray();
 
                                 $rows[] = [
-                                    'visit'      => $program->total_stamps,
-                                    'reward'     => ($prizeSystem?->reward_title ?? '—') . ' · Premio final',
-                                    'repeatable' => '—',
-                                    'status'     => $collected >= $program->total_stamps ? 'Obtenido' : 'Pendiente',
+                                    'visit'       => $program->total_stamps,
+                                    'reward'      => ($prizeSystem?->reward_title ?? '—') . ' · Premio final',
+                                    'description' => $prizeSystem?->reward_description ?: '—',
+                                    'repeatable'  => '—',
+                                    'status'      => $collected >= $program->total_stamps ? 'Obtenido' : 'Pendiente',
                                 ];
 
                                 return $rows;
@@ -227,6 +229,9 @@ class ViewLoyaltyCard extends ViewRecord
                                 TextEntry::make('reward')
                                     ->label('Premio'),
 
+                                TextEntry::make('description')
+                                    ->label('Descripción'),
+
                                 TextEntry::make('repeatable')
                                     ->label('Repetible'),
 
@@ -235,7 +240,7 @@ class ViewLoyaltyCard extends ViewRecord
                                     ->badge()
                                     ->color(fn (string $state) => $state === 'Obtenido' ? 'success' : 'gray'),
                             ])
-                            ->columns(4)
+                            ->columns(5)
                             ->columnSpanFull(),
                     ])
                     ->collapsible()
