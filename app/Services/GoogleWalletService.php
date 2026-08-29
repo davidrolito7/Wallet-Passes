@@ -380,6 +380,12 @@ class GoogleWalletService
             'id'     => 'next_reward',
         ];
 
+        $modules[] = [
+            'header' => 'Premios',
+            'body'   => $card->prizesListText(),
+            'id'     => 'prizes_list',
+        ];
+
         if ($card->created_at) {
             $modules[] = [
                 'header' => 'Miembro desde',

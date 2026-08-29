@@ -62,7 +62,7 @@ class AppleWalletService
             // Reverso de la tarjeta
             ->addBackField('program_name', filled($program->description) ? $program->description : $program->name, label: 'Términos')
             ->addBackField('member_since', $card->created_at->translatedFormat('F Y'), label: 'Miembro desde')
-            ->addBackField('prizes_list', $this->prizesListText($card), label: 'Premios')
+            ->addBackField('prizes_list', $card->prizesListText(), label: 'Premios')
             ->withBackFieldRight('prizes_list')
             ->addBackField('contact', $this->contactText($card), label: 'Contacto')
             // wallet_msg: campo portador de notificaciones. Su valor es la última notificación
@@ -184,7 +184,7 @@ class AppleWalletService
 
         // Actualizar next_reward y la lista de premios con el estado actual.
         $builder->updateField('next_reward', $this->nextRewardText($card));
-        $builder->updateField('prizes_list', $this->prizesListText($card));
+        $builder->updateField('prizes_list', $card->prizesListText());
 
         // wallet_msg: portador de la notificación push.
         // Apple PassFieldContent docs: %@ es OBLIGATORIO en changeMessage para que Apple muestre
@@ -338,21 +338,6 @@ class AppleWalletService
     private function passHasLocation(MobilePass $pass): bool
     {
         return filled($pass->content['locations'] ?? null);
-    }
-
-    private function prizesListText(LoyaltyCard $card): string
-    {
-        $program     = $card->loyaltyProgram;
-        $prizeSystem = $card->resolvedPrizeSystem();
-        $lines       = [];
-
-        foreach ($prizeSystem?->milestones ?? collect() as $m) {
-            $lines[] = 'Visita ' . $m->stamp_count . ': ' . $m->reward_title;
-        }
-
-        $lines[] = 'Visita ' . $program->total_stamps . ': ' . ($prizeSystem?->reward_title ?? '—') . ' ★';
-
-        return implode("\n", $lines);
     }
 
     private function contactText(LoyaltyCard $card): string

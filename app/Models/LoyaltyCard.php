@@ -158,6 +158,32 @@ class LoyaltyCard extends Model
             : 'Te faltan ' . $remaining . ' visitas para tu próximo premio';
     }
 
+    /**
+     * Lista de premios para el reverso de la tarjeta (Apple y Google Wallet):
+     * "Visita 2: Café gratis (Espresso o americano)" — la descripción solo se agrega
+     * entre paréntesis cuando el premio la tiene configurada.
+     */
+    public function prizesListText(): string
+    {
+        $program     = $this->loyaltyProgram;
+        $prizeSystem = $this->resolvedPrizeSystem();
+        $lines       = [];
+
+        foreach ($prizeSystem?->milestones ?? collect() as $m) {
+            $lines[] = 'Visita ' . $m->stamp_count . ': ' . $m->reward_title . $this->parenthesizedDescription($m->reward_description);
+        }
+
+        $lines[] = 'Visita ' . $program->total_stamps . ': '
+            . ($prizeSystem?->reward_title ?? '—') . $this->parenthesizedDescription($prizeSystem?->reward_description) . ' ★';
+
+        return implode("\n", $lines);
+    }
+
+    private function parenthesizedDescription(?string $description): string
+    {
+        return filled($description) ? ' (' . $description . ')' : '';
+    }
+
     public function nextMilestone(): ?LoyaltyMilestone
     {
         return $this->resolvedPrizeSystem()?->milestones()
