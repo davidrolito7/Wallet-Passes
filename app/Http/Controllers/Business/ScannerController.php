@@ -36,6 +36,25 @@ class ScannerController extends Controller
 
         $program = $card->loyaltyProgram;
 
+        // La tarjeta ya se completó (10/10) y la vuelven a escanear: esto es el cliente
+        // canjeando su premio en el mostrador, no una visita nueva. Se reinicia la tarjeta y
+        // se avanza al siguiente sistema de premios (o se repite el mismo si solo hay uno).
+        if ($card->is_completed) {
+            $redemption = app(LoyaltyService::class)->redeemReward($card, redeemedBy: 'scanner');
+            $card       = $card->fresh(['loyaltyProgram.prizeSystems.milestones']);
+
+            return response()->json([
+                'success'         => true,
+                'redeemed'        => true,
+                'name'            => $card->fullName(),
+                'redeemed_reward' => $redemption->reward_title,
+                'stamps'          => $card->stamps_collected,
+                'total'           => $program->total_stamps,
+                'is_completed'    => false,
+                'next_reward'     => $card->resolvedPrizeSystem()?->reward_title ?? $program->reward_title,
+            ]);
+        }
+
         // Detectar cumpleaños antes de agregar el sello
         $isBirthday = $card->birth_date
             && $card->birth_date->format('m-d') === now()->format('m-d');

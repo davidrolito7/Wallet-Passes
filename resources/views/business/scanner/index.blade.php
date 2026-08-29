@@ -166,6 +166,8 @@ function showResult(data) {
 
     if (!data.success) {
         content.innerHTML = buildError(data.error ?? 'Error desconocido');
+    } else if (data.redeemed) {
+        content.innerHTML = buildRedeemed(data);
     } else {
         content.innerHTML = buildSuccess(data);
     }
@@ -280,6 +282,46 @@ function buildSuccess(d) {
         </div>
 
         ${badges ? `<div class="space-y-2">${badges}</div>` : ''}
+    `;
+}
+
+function buildRedeemed(d) {
+    const initials = d.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+
+    return `
+        <div class="flex flex-col items-center mb-5">
+            <div class="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mb-3 text-2xl shadow-lg">
+                <span>🎉</span>
+            </div>
+            <p class="text-lg font-bold text-gray-900">¡Premio canjeado!</p>
+        </div>
+
+        <div class="flex items-center gap-4 bg-gray-50 rounded-xl p-4 mb-4">
+            <div class="w-11 h-11 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span class="text-sm font-bold text-indigo-700">${initials}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-base font-semibold text-gray-900 truncate">${d.name}</p>
+                <p class="text-xs text-gray-500 mt-0.5">Tarjeta reiniciada · 0 / ${d.total} visitas</p>
+            </div>
+        </div>
+
+        <div class="space-y-2">
+            <div class="flex items-start gap-3 bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                <span class="text-2xl leading-none">🏆</span>
+                <div>
+                    <p class="text-sm font-semibold text-emerald-800">Premio entregado</p>
+                    <p class="text-sm text-emerald-700 font-medium mt-0.5">${d.redeemed_reward}</p>
+                </div>
+            </div>
+            <div class="flex items-start gap-3 bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+                <span class="text-2xl leading-none">🎯</span>
+                <div>
+                    <p class="text-sm font-semibold text-indigo-800">Nuevo ciclo iniciado</p>
+                    <p class="text-sm text-indigo-700 font-medium mt-0.5">Ahora acumula para: ${d.next_reward}</p>
+                </div>
+            </div>
+        </div>
     `;
 }
 
