@@ -1958,7 +1958,7 @@
                             <div class="check-icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white"
                                     stroke-width="3" stroke-linecap="round">
                                     <polyline points="20 6 9 17 4 12" />
-                                </svg></div>3 diseños de tarjeta de lealtad
+                                </svg></div>2 diseños de tarjeta de lealtad
                         </li>
                         <li>
                             <div class="check-icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white"
@@ -1999,7 +1999,7 @@
                             <div class="check-icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="none"
                                     stroke="var(--color-cream-fg)" stroke-width="3" stroke-linecap="round">
                                     <polyline points="20 6 9 17 4 12" />
-                                </svg></div>7 diseños de tarjeta de lealtad
+                                </svg></div>3 diseños de tarjeta de lealtad
                         </li>
                         <li>
                             <div class="check-icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="none"
