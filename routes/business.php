@@ -30,6 +30,7 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::post('/scanner/scan', [ScannerController::class, 'scan'])->name('scanner.scan');
 
         Route::get('/customers', [CustomersController::class, 'index'])->name('customers');
+        Route::post('/customers/message', [CustomersController::class, 'sendMessage'])->name('customers.message');
 
         Route::get('/qr', [QrController::class, 'index'])->name('qr');
     });

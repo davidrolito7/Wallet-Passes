@@ -215,7 +215,7 @@ class LoyaltyCardResource extends Resource
                             ->label('Mensaje')
                             ->required()
                             ->rows(3)
-                            ->maxLength(300)
+                            ->maxLength(150)
                             ->placeholder('Ej: ¡Hoy tienes 2×1 en todas tus bebidas!')
                             ->helperText('Se enviará como notificación push en Google Wallet (Android) y Apple Wallet (iPhone).'),
                     ])

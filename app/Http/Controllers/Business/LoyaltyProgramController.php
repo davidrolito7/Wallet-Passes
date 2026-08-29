@@ -24,6 +24,12 @@ class LoyaltyProgramController extends Controller
     {
         $business = Auth::guard('business')->user();
 
+        // El tope de "Visita #" de un hito depende del total de sellos configurado en Mi
+        // Negocio (versión 1 o 2 de la tarjeta) — un hito no puede caer en la última visita,
+        // esa es la del premio final.
+        $program       = LoyaltyProgram::where('business_id', $business->id)->first();
+        $maxStampCount = max((($program?->total_stamps) ?? 10) - 1, 1);
+
         $data = $request->validate([
             'name'                 => ['required', 'string', 'max:255'],
             'description'          => ['nullable', 'string'],
@@ -35,7 +41,7 @@ class LoyaltyProgramController extends Controller
             'prize_systems.*.reward_title'                => ['required_with:prize_systems', 'string', 'max:255'],
             'prize_systems.*.reward_description'          => ['nullable', 'string'],
             'prize_systems.*.milestones'                  => ['nullable', 'array'],
-            'prize_systems.*.milestones.*.stamp_count'    => ['required_with:prize_systems.*.milestones', 'integer', 'min:1'],
+            'prize_systems.*.milestones.*.stamp_count'    => ['required_with:prize_systems.*.milestones', 'integer', 'min:1', 'max:' . $maxStampCount],
             'prize_systems.*.milestones.*.reward_title'   => ['required_with:prize_systems.*.milestones', 'string', 'max:255'],
             'prize_systems.*.milestones.*.reward_description' => ['nullable', 'string'],
             'prize_systems.*.milestones.*.is_repeatable'  => ['boolean'],
@@ -49,7 +55,9 @@ class LoyaltyProgramController extends Controller
             'google_wallet_notification_mode' => ['nullable', 'in:balance_update_only,custom_message_only,both'],
         ]);
 
-        $program = LoyaltyProgram::firstOrNew(['business_id' => $business->id]);
+        if (! $program) {
+            $program = new LoyaltyProgram(['business_id' => $business->id]);
+        }
 
         $data['business_id'] = $business->id;
         $data['is_active']   = $request->boolean('is_active', true);

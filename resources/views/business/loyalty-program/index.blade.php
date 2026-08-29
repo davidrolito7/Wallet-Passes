@@ -27,6 +27,18 @@
     // Solo para mostrar "Premio Final — X visitas". El total de sellos ahora se
     // configura en Mi Negocio, junto con las imágenes para Wallet.
     $totalStamps = $program?->total_stamps ?? 10;
+
+    // Las imágenes para Wallet (y con ellas, la versión de tarjeta 1 o 2 y el total de
+    // sellos real) se configuran en Mi Negocio, pero ese formulario solo puede guardarlas si
+    // el programa ya existe. Por eso el aviso solo aplica cuando el programa ya se creó pero
+    // aún no tiene imágenes — a un negocio nuevo (sin programa) hay que dejarlo crear el
+    // programa aquí primero; mandarlo a Mi Negocio antes lo dejaría subiendo imágenes que se
+    // ignoran en silencio porque todavía no hay dónde guardarlas.
+    $needsImagesWarning = $program && ! (
+        filled($program->filled_stamp_image)
+        || filled($program->empty_stamp_image)
+        || filled($program->pass_background_image)
+    );
 @endphp
 
 <div class="space-y-8">
@@ -104,6 +116,28 @@
                 </div>
             </div>
 
+            @if($needsImagesWarning)
+                <div class="mb-6 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.07 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-amber-800">Primero configura las imágenes y la versión de tu tarjeta</p>
+                        <p class="text-xs text-amber-700 mt-0.5">
+                            En "Mi Negocio" eliges la Versión 1 (imagen de fondo) o Versión 2 (sellos visuales) y el total de visitas/sellos.
+                            Ese total es el que define hasta qué visita puedes poner premios intermedios aquí. Configúralo primero y luego regresa a esta página.
+                        </p>
+                        <a href="{{ route('business.profile') }}"
+                           class="inline-flex items-center gap-1.5 mt-3 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors">
+                            Ir a Mi Negocio
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            @endif
+
             <div id="systems-container" class="space-y-6">
                 @foreach($rawSystems as $si => $system)
                     <div class="system-card rounded-xl border border-gray-200 overflow-hidden" data-system-index="{{ $si }}">
@@ -149,7 +183,7 @@
                                                     <input type="number"
                                                            name="prize_systems[{{ $si }}][milestones][{{ $mi }}][stamp_count]"
                                                            value="{{ $milestone['stamp_count'] ?? '' }}"
-                                                           min="1"
+                                                           min="1" max="{{ $totalStamps - 1 }}"
                                                            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                                 </div>
                                                 <div class="flex-1 min-w-[120px]">
@@ -351,7 +385,7 @@ function milestoneTemplate(sysIdx, mIdx) {
             <label class="block text-xs font-medium text-gray-500 mb-1">Visita #</label>
             <input type="number"
                    name="prize_systems[${sysIdx}][milestones][${mIdx}][stamp_count]"
-                   min="1"
+                   min="1" max="${TOTAL_STAMPS - 1}"
                    class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
         </div>
         <div class="flex-1 min-w-[120px]">
