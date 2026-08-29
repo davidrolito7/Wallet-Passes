@@ -1182,12 +1182,15 @@
         }
 
         .plan-btn {
+            display: block;
             width: 100%;
             padding: 13px 24px;
             border-radius: 9999px;
             font-family: var(--font-sans);
             font-size: 15px;
             font-weight: 600;
+            text-align: center;
+            text-decoration: none;
             cursor: pointer;
             transition: opacity 0.2s;
             border: 1.5px solid rgba(5, 70, 134, 0.2);
@@ -1938,7 +1941,7 @@
                                 </svg></div>Soporte prioritario
                         </li>
                     </ul>
-                    <button class="plan-btn">Comenzar</button>
+                    <a href="#contacto" class="plan-btn">Comenzar</a>
                 </div>
                 <!-- ── Pro ── -->
                 <div class="pricing-card featured reveal" style="transition-delay:0.2s;">
@@ -1980,7 +1983,7 @@
                         </li>
 
                     </ul>
-                    <button class="plan-btn">Elegir Pro</button>
+                    <a href="#contacto" class="plan-btn">Elegir Pro</a>
                 </div>
                 <!-- ── Empresarial ── -->
                 <div class="pricing-card reveal" style="transition-delay:0.3s;">
@@ -2027,7 +2030,7 @@
                         </li>
 
                     </ul>
-                    <button class="plan-btn">Hablar con ventas</button>
+                    <a href="#contacto" class="plan-btn">Hablar con ventas</a>
                 </div>
             </div>
         </div>
