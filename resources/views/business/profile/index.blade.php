@@ -90,12 +90,12 @@ $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 
                 <div class="flex items-center gap-2">
                     <input type="color" value="{{ old('primary_color', $business->primary_color ?? '#1a1a2e') }}"
                         oninput="document.getElementById('txt_primary').value=this.value"
-                        class="h-10 w-24 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
+                        class="h-10 w-24 shrink-0 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
                     <input type="text" id="txt_primary" name="primary_color"
                         value="{{ old('primary_color', $business->primary_color ?? '#1a1a2e') }}"
                         oninput="this.previousElementSibling.value=this.value"
                         maxlength="7"
-                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
             </div>
 
@@ -104,12 +104,12 @@ $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 
                 <div class="flex items-center gap-2">
                     <input type="color" value="{{ old('secondary_color', $business->secondary_color ?? '#ffffff') }}"
                         oninput="document.getElementById('txt_secondary').value=this.value"
-                        class="h-10 w-24 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
+                        class="h-10 w-24 shrink-0 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
                     <input type="text" id="txt_secondary" name="secondary_color"
                         value="{{ old('secondary_color', $business->secondary_color ?? '#ffffff') }}"
                         oninput="this.previousElementSibling.value=this.value"
                         maxlength="7"
-                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
             </div>
 
@@ -118,12 +118,12 @@ $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 
                 <div class="flex items-center gap-2">
                     <input type="color" value="{{ old('label_color', $business->label_color ?? '#cccccc') }}"
                         oninput="document.getElementById('txt_label').value=this.value"
-                        class="h-10 w-24 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
+                        class="h-10 w-24 shrink-0 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
                     <input type="text" id="txt_label" name="label_color"
                         value="{{ old('label_color', $business->label_color ?? '#cccccc') }}"
                         oninput="this.previousElementSibling.value=this.value"
                         maxlength="7"
-                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
             </div>
 
@@ -311,13 +311,13 @@ $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 
                             value="{{ $customBgColorValue }}"
                             oninput="document.getElementById('bg_solid_color_text').value=this.value"
                             {{ $bgModeActive && $useCustomBgColor ? '' : 'disabled' }}
-                            class="h-10 w-24 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
+                            class="h-10 w-24 shrink-0 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
                         <input type="text" id="bg_solid_color_text" name="background_solid_color"
                             value="{{ $customBgColorValue }}"
                             oninput="this.previousElementSibling.value=this.value"
                             maxlength="7"
                             {{ $bgModeActive && $useCustomBgColor ? '' : 'disabled' }}
-                            class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
 
                     <p class="mt-1 text-xs text-gray-400">Debe ir en formato hexadecimal (ej. #1a1a2e).</p>
