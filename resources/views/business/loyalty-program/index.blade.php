@@ -316,7 +316,7 @@
 
         {{-- ─── 4. Notificaciones al Wallet ────────────────────────────────── --}}
         <div class="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 class="text-base font-semibold text-gray-900 mb-1">Notificaciones al Wallet</h2>
+            <h2 class="text-base font-semibold text-gray-900 mb-1">Mensaje de notificación al cumplir una visita</h2>
             <p class="text-xs text-gray-500 mb-5">
                 <strong>Android</strong> muestra el mensaje vía Google Wallet.
                 <strong>iPhone</strong> muestra el mensaje como notificación push de Apple Wallet.
