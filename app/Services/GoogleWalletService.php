@@ -40,10 +40,15 @@ class GoogleWalletService
             ->setIssuerName($business->name)
             ->setProgramName($program->name)
             ->setProgramLogoUrl($business->logoPublicUrl() ?? config('app.url').'/images/default-logo.png')
-            ->setRewardsTier($program->prizeSystems()->value('reward_title') ?? '—')
-            ->setRewardsTierLabel('Premio')
+            // "Premio" (rewardsTier) y "Tarjeta" (accountIdLabel) se quitaron del diseño — ya
+            // hay "Próximo Premio" y "Premios" en los text modules del objeto, y el número de
+            // tarjeta no aporta nada al cliente. Se envían vacíos (no se omiten) porque Google
+            // solo actualiza un campo de la clase si se le manda explícitamente en el PATCH —
+            // omitirlo deja el valor viejo ("Premio"/"Tarjeta") en clases ya creadas.
+            ->setRewardsTier('')
+            ->setRewardsTierLabel('')
             ->setAccountNameLabel('Miembro')
-            ->setAccountIdLabel('Tarjeta')
+            ->setAccountIdLabel('')
             ->setBackgroundColor($business->primary_color)
             ->save();
 
@@ -92,7 +97,6 @@ class GoogleWalletService
         // The created event does NOT trigger the Spatie update observer, so no double PATCH.
         $pass = LoyaltyPassBuilder::make()
             ->setClass($program->googleClassSuffix())
-            ->setAccountId('CARD-'.str_pad($card->id, 6, '0', STR_PAD_LEFT))
             ->setAccountName($card->walletHolderName())
             ->setBalanceString($this->balanceString($card))
             ->setBarcode(BarcodeType::Qr, $barcodeValue)
@@ -328,6 +332,11 @@ class GoogleWalletService
 
         $payload['textModulesData'] = $this->textModules($card);
 
+        $links = $this->contactLinks($card);
+        if ($links) {
+            $payload['linksModuleData'] = ['uris' => $links];
+        }
+
         return $payload;
     }
 
@@ -337,11 +346,48 @@ class GoogleWalletService
      */
     private function patchPayloadForUpdate(array $payload): array
     {
-        return array_filter([
+        $patch = array_filter([
             'loyaltyPoints'   => $payload['loyaltyPoints'] ?? null,
             'heroImage'       => $payload['heroImage'] ?? null,
             'textModulesData' => $payload['textModulesData'] ?? null,
+            'linksModuleData' => $payload['linksModuleData'] ?? null,
         ], static fn ($value) => $value !== null);
+
+        // Limpia el "Tarjeta CARD-xxxxxx" (accountId) que quedó en tarjetas emitidas antes de
+        // quitarlo del diseño. Se envía en cada actualización porque Google solo borra un campo
+        // cuando se le manda explícitamente vacío — omitirlo deja el valor viejo intacto.
+        $patch['accountId'] = '';
+
+        return $patch;
+    }
+
+    /**
+     * Enlaces de contacto del negocio (teléfono, Instagram) que Google Wallet muestra como
+     * chips tocables en el detalle del pase. Equivalente al campo "Contacto" del reverso en
+     * Apple Wallet.
+     */
+    private function contactLinks(LoyaltyCard $card): array
+    {
+        $business = $card->loyaltyProgram->business;
+        $links    = [];
+
+        if (filled($business->contact_phone)) {
+            $links[] = [
+                'uri'         => 'tel:'.preg_replace('/[^0-9+]/', '', $business->contact_phone),
+                'description' => $business->contact_phone,
+                'id'          => 'contact_phone',
+            ];
+        }
+
+        if (filled($business->instagram_url)) {
+            $links[] = [
+                'uri'         => $business->instagram_url,
+                'description' => 'Instagram',
+                'id'          => 'contact_instagram',
+            ];
+        }
+
+        return $links;
     }
 
     /**
