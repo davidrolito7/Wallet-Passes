@@ -99,7 +99,9 @@ class GoogleWalletService
             ->setClass($program->googleClassSuffix())
             ->setAccountName($card->walletHolderName())
             ->setBalanceString($this->balanceString($card))
-            ->setBarcode(BarcodeType::Qr, $barcodeValue)
+            // Sin altText, Google Wallet muestra el valor crudo del código ("loyalty:91:31efaa...")
+            // debajo del QR. Se usa el nombre del cliente en su lugar.
+            ->setBarcode(BarcodeType::Qr, $barcodeValue, $card->walletHolderName())
             ->save();
 
         // Enrich the payload (heroImage, textModules) and persist to DB.
@@ -337,6 +339,13 @@ class GoogleWalletService
             $payload['linksModuleData'] = ['uris' => $links];
         }
 
+        // Sin esto Google Wallet muestra el valor crudo del código de barras debajo del QR
+        // ("loyalty:91:31efaa..."). Se resetea en cada actualización (no solo al crear) para
+        // que las tarjetas ya emitidas antes de este cambio también queden corregidas.
+        if (isset($payload['barcode'])) {
+            $payload['barcode']['alternateText'] = $card->walletHolderName();
+        }
+
         return $payload;
     }
 
@@ -351,6 +360,7 @@ class GoogleWalletService
             'heroImage'       => $payload['heroImage'] ?? null,
             'textModulesData' => $payload['textModulesData'] ?? null,
             'linksModuleData' => $payload['linksModuleData'] ?? null,
+            'barcode'         => $payload['barcode'] ?? null,
         ], static fn ($value) => $value !== null);
 
         // Limpia el "Tarjeta CARD-xxxxxx" (accountId) que quedó en tarjetas emitidas antes de
@@ -415,6 +425,14 @@ class GoogleWalletService
     {
         $program = $card->loyaltyProgram;
         $modules = [];
+
+        // Igual que el campo "Términos" del reverso en Apple Wallet: la descripción del
+        // programa, o el nombre si no hay descripción configurada.
+        $modules[] = [
+            'header' => 'Términos',
+            'body'   => filled($program->description) ? $program->description : $program->name,
+            'id'     => 'terms',
+        ];
 
         $modules[] = [
             'header' => 'Visitas',

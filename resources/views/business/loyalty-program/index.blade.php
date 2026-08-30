@@ -76,7 +76,7 @@
                 </div>
 
                 <div class="sm:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Términos y Condiciones</label>
                     <textarea name="description" rows="3"
                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none">{{ old('description', $program?->description) }}</textarea>
                 </div>
