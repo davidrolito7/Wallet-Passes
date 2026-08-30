@@ -82,7 +82,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Vigencia de la tarjeta</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Vigencia de la tarjeta (Meses)</label>
                     <input type="number"
                            name="validity_months"
                            value="{{ old('validity_months', $program?->validity_months ?? 12) }}"
