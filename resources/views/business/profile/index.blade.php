@@ -3,6 +3,31 @@
 @section('title', 'Mi Negocio')
 @section('heading', 'Mi Negocio')
 
+@push('head')
+<style>
+    /* Sin esto, Chrome/Firefox mantienen su propio padding y borde internos alrededor del
+       "swatch" de color, así que el rectángulo que realmente pinta el color queda mucho más
+       chico que la caja del input (se ve delgado) sin importar el width/height que le pongamos.
+       appearance:none quita el botón nativo y dejamos que las clases de Tailwind (rounded-lg,
+       border, p-0.5) controlen la caja; el swatch interno se estira para llenarla por completo. */
+    input[type="color"] {
+        -webkit-appearance: none;
+        appearance: none;
+    }
+    input[type="color"]::-webkit-color-swatch-wrapper {
+        padding: 0;
+    }
+    input[type="color"]::-webkit-color-swatch {
+        border: none;
+        border-radius: 0.375rem;
+    }
+    input[type="color"]::-moz-color-swatch {
+        border: none;
+        border-radius: 0.375rem;
+    }
+</style>
+@endpush
+
 @section('content')
 @php
 // Si el programa ya usa Versión 1 explícitamente (tiene imagen de fondo y ningún sello
