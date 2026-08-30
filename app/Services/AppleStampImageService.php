@@ -77,7 +77,7 @@ class AppleStampImageService
         $scale = max(0.5, min(1.5, (float) ($program->stamp_scale ?? 1.0)));
         $font  = $program->fontPath();
 
-        [$bgR, $bgG, $bgB] = $this->hexToRgb($business->primary_color ?? '#1a1a2e');
+        [$bgR, $bgG, $bgB] = $this->hexToRgb($program->resolvedBackgroundColor());
         [$fgR, $fgG, $fgB] = $this->hexToRgb($business->secondary_color ?? '#ffffff');
 
         $rW = $outW * self::SCALE;
@@ -469,6 +469,7 @@ class AppleStampImageService
             self::LAYOUT_VERSION,
             $business->primary_color,
             $business->secondary_color,
+            $program->background_solid_color ?? '',
             $program->stamp_icon ?? '',
             $program->stamp_style ?? 'minimal',
             $program->filled_stamp_image ?? '',

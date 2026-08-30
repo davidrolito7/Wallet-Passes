@@ -46,6 +46,8 @@ class BusinessProfileController extends Controller
             // Imágenes para Wallet (viven en LoyaltyProgram, no en Business)
             'total_stamps'           => ['required', 'integer', 'min:1', 'max:50'],
             'background_mode'        => ['nullable', 'in:image,color'],
+            'background_solid_custom'  => ['sometimes'],
+            'background_solid_color'   => ['nullable', 'regex:/^#[0-9a-fA-F]{3,6}$/'],
             'pass_background_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
             'filled_stamp_image'    => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
             'empty_stamp_image'     => ['nullable', 'image', 'mimes:png,webp', 'max:2048'],
@@ -83,14 +85,18 @@ class BusinessProfileController extends Controller
         if ($program) {
             $programData = ['total_stamps' => $data['total_stamps']];
 
-            // "Color sólido de marca" (Versión 2): sin archivo que subir — se limpia la imagen
-            // guardada para que el renderizador use el color primario del negocio, que ya es
-            // su comportamiento por defecto cuando pass_background_image está vacío.
+            // "Color sólido" (Versión 2): sin archivo que subir — se limpia la imagen guardada
+            // para que el renderizador use un color de fondo en su lugar. Por defecto ese color
+            // es el mismo "Fondo de la tarjeta" del negocio; si activó "Elegir otro color" se
+            // guarda ese en su lugar (LoyaltyProgram::resolvedBackgroundColor()).
             if (($data['background_mode'] ?? 'image') === 'color') {
                 if ($program->pass_background_image) {
                     Storage::disk('public')->delete($program->pass_background_image);
                 }
                 $programData['pass_background_image'] = null;
+                $programData['background_solid_color'] = ($request->boolean('background_solid_custom') && filled($data['background_solid_color'] ?? null))
+                    ? $data['background_solid_color']
+                    : null;
             } elseif ($request->hasFile('pass_background_image')) {
                 if ($program->pass_background_image) {
                     Storage::disk('public')->delete($program->pass_background_image);

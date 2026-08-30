@@ -53,53 +53,53 @@ $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 
     {{-- Colores de marca --}}
     <div class="bg-white rounded-xl border border-gray-200 p-6">
         <h2 class="text-base font-semibold text-gray-900 mb-1">Colores de Marca</h2>
-        <p class="text-xs text-gray-500 mb-5">Estos colores se aplican a las tarjetas de lealtad en Apple Wallet y Google Wallet.</p>
+        <p class="text-xs text-gray-500 mb-5">
+            Estos colores se aplican a las tarjetas de lealtad en Apple Wallet y Google Wallet.
+            Deben ir en formato hexadecimal (ej. <code class="font-mono">#1a1a2e</code>).
+        </p>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Color primario</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Fondo de la tarjeta</label>
                 <div class="flex items-center gap-2">
                     <input type="color" value="{{ old('primary_color', $business->primary_color ?? '#1a1a2e') }}"
                         oninput="document.getElementById('txt_primary').value=this.value"
-                        class="h-10 w-14 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
+                        class="h-14 w-20 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
                     <input type="text" id="txt_primary" name="primary_color"
                         value="{{ old('primary_color', $business->primary_color ?? '#1a1a2e') }}"
                         oninput="this.previousElementSibling.value=this.value"
                         maxlength="7"
                         class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
-                <p class="mt-1 text-xs text-gray-400">Fondo de la tarjeta</p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Color secundario</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Títulos de la tarjeta</label>
                 <div class="flex items-center gap-2">
                     <input type="color" value="{{ old('secondary_color', $business->secondary_color ?? '#ffffff') }}"
                         oninput="document.getElementById('txt_secondary').value=this.value"
-                        class="h-10 w-14 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
+                        class="h-14 w-20 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
                     <input type="text" id="txt_secondary" name="secondary_color"
                         value="{{ old('secondary_color', $business->secondary_color ?? '#ffffff') }}"
                         oninput="this.previousElementSibling.value=this.value"
                         maxlength="7"
                         class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
-                <p class="mt-1 text-xs text-gray-400">Texto principal</p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Color de etiquetas</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Texto General</label>
                 <div class="flex items-center gap-2">
                     <input type="color" value="{{ old('label_color', $business->label_color ?? '#cccccc') }}"
                         oninput="document.getElementById('txt_label').value=this.value"
-                        class="h-10 w-14 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
+                        class="h-14 w-20 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
                     <input type="text" id="txt_label" name="label_color"
                         value="{{ old('label_color', $business->label_color ?? '#cccccc') }}"
                         oninput="this.previousElementSibling.value=this.value"
                         maxlength="7"
                         class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
-                <p class="mt-1 text-xs text-gray-400">Labels de la tarjeta</p>
             </div>
 
         </div>
@@ -136,9 +136,11 @@ $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 
 
     {{-- Imágenes para Wallet --}}
     <div class="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 class="text-base font-semibold text-gray-900 mb-1">Imágenes para Wallet</h2>
+        <h2 class="text-base font-semibold text-gray-900 mb-1">Imágenes para tus sellos</h2>
         <p class="text-xs text-gray-500 mb-5">
-            Solo sube las imágenes que deseas cambiar. Las actuales se conservan si no seleccionas un archivo nuevo.
+            Aquí personalizas cómo se ve la tarjeta de sellos que tus clientes guardan en Apple Wallet y Google Wallet:
+            la imagen de cada sello (lleno y vacío) y el fondo de la tarjeta. Solo sube lo que quieras cambiar —
+            lo que no toques se queda como está.
         </p>
 
         {{-- v1 / v2 switch --}}
@@ -259,11 +261,41 @@ $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 
                 </div>
 
                 <div id="bg-mode-color-fields" class="{{ $bgModeV2 === 'image' ? 'hidden' : '' }}">
-                    <div class="flex items-center gap-2">
+                    @php
+                        $bgModeActive     = $imgVersion === '2' && $bgModeV2 === 'color';
+                        $useCustomBgColor = old('background_solid_custom', (bool) $program?->background_solid_color);
+                        $customBgColorValue = old('background_solid_color', $program?->background_solid_color ?? $business->primary_color ?? '#1a1a2e');
+                    @endphp
+
+                    <label class="flex items-center gap-2 cursor-pointer select-none mb-3">
+                        <input type="checkbox" id="bg_solid_custom" name="background_solid_custom" value="1"
+                            {{ $useCustomBgColor ? 'checked' : '' }}
+                            {{ $bgModeActive ? '' : 'disabled' }}
+                            onchange="toggleCustomBgColor(this.checked)"
+                            class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                        <span class="text-sm text-gray-700">Elegir otro color sólido</span>
+                    </label>
+
+                    <div id="bg-color-default" class="flex items-center gap-2 {{ $useCustomBgColor ? 'hidden' : '' }}">
                         <span class="h-8 w-8 rounded-lg border border-gray-200" style="background-color: {{ $business->primary_color ?? '#1a1a2e' }}"></span>
-                        <span class="text-sm text-gray-600">Usa tu color primario de marca ({{ $business->primary_color ?? '#1a1a2e' }})</span>
+                        <span class="text-sm text-gray-600">Usa el mismo color del fondo de tu tarjeta ({{ $business->primary_color ?? '#1a1a2e' }})</span>
                     </div>
-                    <p class="mt-1 text-xs text-gray-400">Se ajusta solo si cambias el color primario en "Colores de Marca".</p>
+
+                    <div id="bg-color-custom" class="flex items-center gap-2 {{ $useCustomBgColor ? '' : 'hidden' }}">
+                        <input type="color" id="bg_solid_color_picker"
+                            value="{{ $customBgColorValue }}"
+                            oninput="document.getElementById('bg_solid_color_text').value=this.value"
+                            {{ $bgModeActive && $useCustomBgColor ? '' : 'disabled' }}
+                            class="h-14 w-20 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
+                        <input type="text" id="bg_solid_color_text" name="background_solid_color"
+                            value="{{ $customBgColorValue }}"
+                            oninput="this.previousElementSibling.value=this.value"
+                            maxlength="7"
+                            {{ $bgModeActive && $useCustomBgColor ? '' : 'disabled' }}
+                            class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+
+                    <p class="mt-1 text-xs text-gray-400">Debe ir en formato hexadecimal (ej. #1a1a2e).</p>
                 </div>
             </div>
 
@@ -489,6 +521,7 @@ $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 
                 stampsV1.required = true;
             }
             if (stampsV2) stampsV2.disabled = true;
+            updateBgCustomAvailability();
         } else {
             v2Panel.classList.remove('hidden');
             v1Panel.classList.add('hidden');
@@ -509,6 +542,7 @@ $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 
                 stampsV1.required = false;
             }
             if (stampsV2) stampsV2.disabled = false;
+            updateBgCustomAvailability();
         }
     }
 
@@ -540,6 +574,33 @@ $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 
         }
     }
 
+    // ── Fondo Versión 2: color sólido personalizado ─────────────────────────────────
+
+    // Habilita/deshabilita el checkbox "Elegir otro color sólido" según si el modo activo es
+    // realmente Versión 2 + Color (si no, se deshabilita para no enviarlo por accidente).
+    function updateBgCustomAvailability() {
+        const bgModeColor    = document.getElementById('bg_mode_color');
+        const customCheckbox = document.getElementById('bg_solid_custom');
+        const active = !!bgModeColor && !bgModeColor.disabled && bgModeColor.checked;
+
+        if (customCheckbox) customCheckbox.disabled = !active;
+        toggleCustomBgColor(active && !!customCheckbox?.checked);
+    }
+
+    function toggleCustomBgColor(useCustom) {
+        const defaultBlock   = document.getElementById('bg-color-default');
+        const customBlock    = document.getElementById('bg-color-custom');
+        const picker         = document.getElementById('bg_solid_color_picker');
+        const text           = document.getElementById('bg_solid_color_text');
+        const customCheckbox = document.getElementById('bg_solid_custom');
+        const active = !!useCustom && !!customCheckbox && !customCheckbox.disabled;
+
+        if (defaultBlock) defaultBlock.classList.toggle('hidden', active);
+        if (customBlock) customBlock.classList.toggle('hidden', !active);
+        if (picker) picker.disabled = !active;
+        if (text) text.disabled = !active;
+    }
+
     // ── Background mode switch (Versión 2 only) ────────────────────────────────────
 
     function switchBgMode(mode) {
@@ -551,6 +612,7 @@ $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 
             imageFields?.classList.remove('hidden');
             colorFields?.classList.add('hidden');
             if (bgV2) bgV2.disabled = false;
+            updateBgCustomAvailability();
         } else {
             imageFields?.classList.add('hidden');
             colorFields?.classList.remove('hidden');
@@ -558,6 +620,7 @@ $bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 
                 bgV2.value = '';
                 bgV2.disabled = true;
             }
+            updateBgCustomAvailability();
         }
     }
 </script>

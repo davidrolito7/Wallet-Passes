@@ -244,7 +244,7 @@ function buildSuccess(d) {
                 <span class="text-2xl leading-none">🎁</span>
                 <div>
                     <p class="text-sm font-semibold text-indigo-800">Premio intermedio ganado</p>
-                    <p class="text-sm text-indigo-700 font-medium mt-0.5">${d.milestone.title}</p>
+                    <p class="text-sm text-indigo-700 font-medium mt-0.5">${d.milestone.title}${d.milestone.description ? ` (${d.milestone.description})` : ''}</p>
                 </div>
             </div>`;
     }

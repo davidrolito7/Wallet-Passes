@@ -37,6 +37,7 @@ class LoyaltyProgram extends Model
         'empty_stamp_image',
         'reward_badge_image',
         'pass_background_image',
+        'background_solid_color',
         'stamp_scale',
         'stamp_spacing',
         'reward_title',
@@ -114,6 +115,16 @@ class LoyaltyProgram extends Model
         }
 
         return \Storage::disk('public')->url($this->pass_background_image);
+    }
+
+    /**
+     * Color sólido usado como fondo de la tarjeta (Versión 2, modo "color") cuando no hay
+     * imagen de fondo configurada. Si el negocio no eligió un color propio para esto, se usa
+     * el mismo color de fondo de la tarjeta ("primary_color").
+     */
+    public function resolvedBackgroundColor(): string
+    {
+        return $this->background_solid_color ?: ($this->business->primary_color ?? '#1a1a2e');
     }
 
     public function googleClassSuffix(): string

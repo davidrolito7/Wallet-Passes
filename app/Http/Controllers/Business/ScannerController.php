@@ -93,7 +93,8 @@ class ScannerController extends Controller
                 'description' => $program->birthday_reward_description,
             ] : null,
             'milestone'    => $milestones->isNotEmpty() ? [
-                'title' => $milestones->first()->reward_title,
+                'title'       => $milestones->first()->reward_title,
+                'description' => $milestones->first()->reward_description,
             ] : null,
             'main_reward'  => $card->is_completed
                 ? ($card->resolvedPrizeSystem()?->reward_title ?? $program->reward_title)
