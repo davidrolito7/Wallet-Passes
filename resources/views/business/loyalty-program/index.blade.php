@@ -267,7 +267,7 @@
             </button>
         </div>
 
-        {{-- ─── 3. Premio de Cumpleaños ────────────────────────────────────── --}}
+        <!-- {{-- ─── 3. Premio de Cumpleaños ────────────────────────────────────── --}}
         <div class="bg-white rounded-xl border border-gray-200 p-6">
             <h2 class="text-base font-semibold text-gray-900 mb-1">Premio de Cumpleaños</h2>
             <p class="text-xs text-gray-500 mb-5">El cliente verá su regalo especial en la tarjeta el día de su cumpleaños.</p>
@@ -312,7 +312,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div> -->
 
         {{-- ─── 4. Notificaciones al Wallet ────────────────────────────────── --}}
         <div class="bg-white rounded-xl border border-gray-200 p-6">
