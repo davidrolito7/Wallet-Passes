@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -16,30 +18,28 @@ class GoogleMapsLinkResolver
     {
         $coordinates = $this->parse($url);
 
-        // El link de un NEGOCIO (ficha reclamada / Knowledge Panel) suele compartirse como
-        // g.co/kgs/... en vez de maps.app.goo.gl — antes solo se reconocía este último, así que
-        // esos enlaces nunca llegaban a resolverse y siempre tiraban "no se encontraron
-        // coordenadas", aunque el link fuera válido.
-        if (! $coordinates && $this->isShortLink($url)) {
-            $resolved = $this->resolveShortLink($url);
-
-            if ($resolved) {
-                $coordinates = $this->parse($resolved);
-                $url         = $resolved;
-            }
-        }
-
-        // Último recurso: algunos links de negocio (ej. ?cid=1234567890) no traen coordenadas
-        // en la URL en absoluto — solo un ID opaco de Google. En ese caso se descarga la página
-        // y se buscan las coordenadas en el HTML (Google siempre las incrusta ahí, aunque no
-        // estén en la URL: mapa estático de og:image, canonical, etc.).
+        // Un link corto (maps.app.goo.gl, g.co/kgs) casi siempre resuelve a una URL larga con
+        // las coordenadas reales del pin — se busca ahí. IMPORTANTE: no se debe intentar sacar
+        // coordenadas del HTML/JS de la página en sí. Cuando el link comparte la FICHA de un
+        // negocio (no un pin suelto) Google resuelve a algo como
+        // "...maps?q=Nombre+del+lugar,+Calle+123&ftid=0x85c7..." sin coordenadas reales en
+        // ningún lado, y la página solo trae un mapa genérico de vista previa (og:image) que
+        // puede estar centrado a cientos de km del negocio real — devolver eso sería peor que
+        // no encontrar nada, porque ubicaría mal el negocio sin que nadie lo note.
         if (! $coordinates) {
-            $coordinates = $this->parseFromPageContent($url);
+            $response = $this->safeGet($url);
+
+            if ($response) {
+                $coordinates = $this->parse((string) $response->effectiveUri());
+            }
         }
 
         if (! $coordinates) {
             throw new RuntimeException(
-                'No se encontraron coordenadas en ese enlace. Abre el negocio en Google Maps, toca "Compartir" → "Copiar enlace" y pégalo aquí.'
+                'No se encontraron coordenadas en ese enlace. Esto pasa cuando compartes la ficha del negocio '
+                .'directamente (Google no expone sus coordenadas exactas por ese medio). En vez de eso: abre Google '
+                .'Maps, mantén presionado el pin exacto del negocio para soltar una ubicación en ese punto, y comparte '
+                .'ESE enlace ("Compartir" → "Copiar enlace").'
             );
         }
 
@@ -62,43 +62,26 @@ class GoogleMapsLinkResolver
             return [(float) $matches[1], (float) $matches[2]];
         }
 
-        // ?q=19.432608,-99.133209 · &ll=19.432608,-99.133209 · staticmap?center=19.4,-99.1
-        // (esta última aparece en el <meta property="og:image"> de la página de un lugar).
-        if (preg_match('/[?&](?:q|ll|center)=(-?\d+\.\d+),(-?\d+\.\d+)/', $content, $matches)) {
+        // ?q=19.432608,-99.133209 · &ll=19.432608,-99.133209 (la coma a veces viene URL-encoded
+        // como %2C en la URL final después de un redirect, así que se acepta cualquiera de las
+        // dos formas).
+        if (preg_match('/[?&](?:q|ll|center)=(-?\d+\.\d+)(?:,|%2C)(-?\d+\.\d+)/i', $content, $matches)) {
             return [(float) $matches[1], (float) $matches[2]];
         }
 
         return null;
     }
 
-    private function isShortLink(string $url): bool
-    {
-        return (bool) preg_match('/(maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/)/i', $url);
-    }
-
-    private function resolveShortLink(string $url): ?string
+    private function safeGet(string $url): ?Response
     {
         try {
-            $response = $this->httpRequest()->get($url);
-
-            return (string) $response->effectiveUri() ?: null;
+            return $this->httpRequest()->get($url);
         } catch (\Throwable) {
             return null;
         }
     }
 
-    private function parseFromPageContent(string $url): ?array
-    {
-        try {
-            $response = $this->httpRequest()->get($url);
-
-            return $response->successful() ? $this->parse($response->body()) : null;
-        } catch (\Throwable) {
-            return null;
-        }
-    }
-
-    private function httpRequest(): \Illuminate\Http\Client\PendingRequest
+    private function httpRequest(): PendingRequest
     {
         // Sin un User-Agent de navegador real, Google a veces responde con una página de
         // consentimiento o un cuerpo recortado que no trae las coordenadas.
