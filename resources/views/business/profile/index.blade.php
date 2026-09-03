@@ -40,8 +40,13 @@ $imgVersion = old('image_version', $defaultImgVersion);
 // Versión 2 siempre usa una cuadrícula fija de 10 sellos, así que ese modo no
 // pide el total — solo la Versión 1 (contador de texto) lo necesita.
 $totalStamps = old('total_stamps', $imgVersion === '2' ? 10 : ($program?->total_stamps ?? 10));
-// Versión 2: fondo con imagen o color sólido de marca (por defecto, el primario).
-$bgModeV2 = old('background_mode', $program?->pass_background_image ? 'image' : 'color');
+// Versión 2: fondo con imagen o color sólido. Antes se usaba "¿ya hay pass_background_image?"
+// para decidir el default, pero eso deja a cualquier negocio NUEVO (que todavía no sube nada)
+// arrancando en modo "color" — el input de archivo queda oculto y disabled, así que aunque
+// seleccione una imagen esta nunca viaja en el submit (se guarda todo lo demás, sale el toast
+// de éxito, y la imagen simplemente nunca llegó al servidor). El default correcto es "image"
+// salvo que el negocio ya haya elegido activamente un color sólido propio antes.
+$bgModeV2 = old('background_mode', $program?->background_solid_color ? 'color' : 'image');
 @endphp
 <form method="POST" action="{{ route('business.profile.save') }}" enctype="multipart/form-data" class="space-y-8 max-w-3xl">
     @csrf
