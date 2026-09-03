@@ -68,6 +68,7 @@ $bgModeV2 = old('background_mode', $program?->background_solid_color ? 'color' :
                 <label class="block text-sm font-medium text-gray-700 mb-1">Logo</label>
                 <input type="file" name="logo_url" accept="image/png,image/webp"
                     class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                @error('logo_url') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 @if($business->logo_url)
                 <div class="mt-2 flex items-center gap-2">
                     <img src="{{ $business->logoPublicUrl() }}" alt="Logo actual" class="h-10 object-contain rounded border border-gray-200 p-0.5 bg-gray-50">
@@ -231,6 +232,7 @@ $bgModeV2 = old('background_mode', $program?->background_solid_color ? 'color' :
                               file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0
                               file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700
                               hover:file:bg-indigo-100">
+                @error('pass_background_image') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 @if($program?->pass_background_image)
                 <div class="mt-2 flex items-center gap-2">
                     <img src="{{ Storage::disk('public')->url($program->pass_background_image) }}"
@@ -280,6 +282,7 @@ $bgModeV2 = old('background_mode', $program?->background_solid_color ? 'color' :
                                   file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0
                                   file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700
                                   hover:file:bg-indigo-100">
+                    @error('pass_background_image') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     @if($program?->pass_background_image)
                     <div class="mt-2 flex items-center gap-2">
                         <img src="{{ Storage::disk('public')->url($program->pass_background_image) }}"
@@ -341,6 +344,7 @@ $bgModeV2 = old('background_mode', $program?->background_solid_color ? 'color' :
                                       file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0
                                       file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700
                                       hover:file:bg-indigo-100">
+                    @error($field) <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     @if($program?->$field)
                     <div class="mt-2 flex items-center gap-2">
                         <img src="{{ Storage::disk('public')->url($program->$field) }}"
