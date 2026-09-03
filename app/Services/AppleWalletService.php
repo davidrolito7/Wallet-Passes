@@ -166,24 +166,34 @@ class AppleWalletService
         // Usar el builder para actualizar todos los campos en un único save() → un único push APNS.
         $builder = $pass->builder();
 
-        // Backfill de ubicaciones: si el negocio tiene locales configurados pero el pase ya
-        // instalado no tiene ninguno (p. ej. se agregaron después de emitir el pase), se
-        // agregan aquí una sola vez. addLocation() siempre suma y nunca reemplaza, así que solo
-        // se llama cuando el pase todavía no tiene ninguna ubicación guardada, para no
-        // duplicarlas en cada sello.
-        if (! $this->passHasLocation($pass)) {
-            $locations = $business->activeLocations()->take(self::MAX_LOCATIONS_PER_PASS)->get();
+        // Ubicaciones: se agregan al pase las que el negocio tiene activas y que todavía no
+        // trae guardadas, sin duplicar las que ya están (addLocation() siempre suma, nunca
+        // reemplaza) ni pasar el tope de 10 que impone Apple. Esto cubre tanto el backfill
+        // inicial (pase sin ninguna ubicación) como agregar un local nuevo a un pase que ya
+        // tenía otros — antes solo funcionaba el primer caso.
+        $savedLocations = $pass->content['locations'] ?? [];
+        $savedKeys      = collect($savedLocations)
+            ->map(fn ($location) => $this->locationKey((float) $location['latitude'], (float) $location['longitude']))
+            ->all();
 
-            if ($locations->isNotEmpty()) {
-                foreach ($locations as $location) {
-                    $builder->addLocation(
-                        latitude: (float) $location->latitude,
-                        longitude: (float) $location->longitude,
-                        relevantText: $location->relevant_text,
-                    );
-                }
-                $builder->setMaxDistance(self::STORE_CARD_MAX_DISTANCE_METERS);
+        $missingLocations = $business->activeLocations()
+            ->get()
+            ->reject(fn ($location) => in_array(
+                $this->locationKey((float) $location->latitude, (float) $location->longitude),
+                $savedKeys,
+                true,
+            ))
+            ->take(max(0, self::MAX_LOCATIONS_PER_PASS - count($savedLocations)));
+
+        if ($missingLocations->isNotEmpty()) {
+            foreach ($missingLocations as $location) {
+                $builder->addLocation(
+                    latitude: (float) $location->latitude,
+                    longitude: (float) $location->longitude,
+                    relevantText: $location->relevant_text,
+                );
             }
+            $builder->setMaxDistance(self::STORE_CARD_MAX_DISTANCE_METERS);
         }
 
         if ($hasStickers) {
@@ -360,9 +370,14 @@ class AppleWalletService
         return false;
     }
 
-    private function passHasLocation(MobilePass $pass): bool
+    /**
+     * Clave de comparación para detectar si una ubicación ya está guardada en el pase.
+     * Redondea a 6 decimales (~11 cm de precisión) para que no falle por diferencias de
+     * punto flotante entre lo guardado y lo que viene de la base de datos.
+     */
+    private function locationKey(float $latitude, float $longitude): string
     {
-        return filled($pass->content['locations'] ?? null);
+        return round($latitude, 6).','.round($longitude, 6);
     }
 
     private function contactText(LoyaltyCard $card): string
