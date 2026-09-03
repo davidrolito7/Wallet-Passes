@@ -197,6 +197,16 @@ class AppleWalletService
             }
         }
 
+        // Vigencia: se recalcula en cada actualización, no solo al crear el pase. Si el negocio
+        // cambia validity_months después de emitida la tarjeta (ej. de 12 a 6 meses), el texto
+        // debe reflejar la nueva fecha la próxima vez que se actualice — igual que ya hace
+        // ScannerController::isExpired(), que también recalcula con el valor vigente del programa.
+        $validUntil  = $card->validUntil();
+        $headerValue = $validUntil
+            ? 'Vigencia ' . $validUntil->format('m/y')
+            : 'Desde ' . $card->created_at->format('m/y');
+        $builder->updateField('validity', $headerValue);
+
         // Actualizar next_reward y la lista de premios con el estado actual.
         $builder->updateField('next_reward', $this->nextRewardText($card));
         $builder->updateField('prizes_list', $card->prizesListText());
