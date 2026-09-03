@@ -183,7 +183,7 @@
                                                     <input type="number"
                                                            name="prize_systems[{{ $si }}][milestones][{{ $mi }}][stamp_count]"
                                                            value="{{ $milestone['stamp_count'] ?? '' }}"
-                                                           min="1" max="{{ $totalStamps - 1 }}"
+                                                           min="2" max="{{ $totalStamps - 1 }}"
                                                            class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                                 </div>
                                                 <div class="flex-1 min-w-[120px]">

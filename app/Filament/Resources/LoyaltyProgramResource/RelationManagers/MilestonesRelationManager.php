@@ -28,7 +28,7 @@ class MilestonesRelationManager extends RelationManager
                 TextInput::make('stamp_count')
                     ->label('En el sello #')
                     ->numeric()
-                    ->minValue(1)
+                    ->minValue(2)
                     ->required()
                     ->helperText('Número de sello al que se activa este premio.'),
 

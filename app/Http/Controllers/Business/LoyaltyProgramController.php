@@ -41,7 +41,7 @@ class LoyaltyProgramController extends Controller
             'prize_systems.*.reward_title'                => ['required_with:prize_systems', 'string', 'max:255'],
             'prize_systems.*.reward_description'          => ['nullable', 'string'],
             'prize_systems.*.milestones'                  => ['nullable', 'array'],
-            'prize_systems.*.milestones.*.stamp_count'    => ['required_with:prize_systems.*.milestones', 'integer', 'min:1', 'max:' . $maxStampCount],
+            'prize_systems.*.milestones.*.stamp_count'    => ['required_with:prize_systems.*.milestones', 'integer', 'min:2', 'max:' . $maxStampCount],
             'prize_systems.*.milestones.*.reward_title'   => ['required_with:prize_systems.*.milestones', 'string', 'max:255'],
             'prize_systems.*.milestones.*.reward_description' => ['nullable', 'string'],
             'prize_systems.*.milestones.*.is_repeatable'  => ['boolean'],
