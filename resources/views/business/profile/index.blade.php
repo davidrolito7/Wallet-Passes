@@ -104,9 +104,21 @@ $bgModeV2 = old('background_mode', $program?->background_solid_color ? 'color' :
                         class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
             </div>
-
-            <div>
+ <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Títulos de la tarjeta</label>
+                <div class="flex items-center gap-2">
+                    <input type="color" value="{{ old('label_color', $business->label_color ?? '#cccccc') }}"
+                        oninput="document.getElementById('txt_label').value=this.value"
+                        class="h-10 w-24 shrink-0 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
+                    <input type="text" id="txt_label" name="label_color"
+                        value="{{ old('label_color', $business->label_color ?? '#cccccc') }}"
+                        oninput="this.previousElementSibling.value=this.value"
+                        maxlength="7"
+                        class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Texto</label>
                 <div class="flex items-center gap-2">
                     <input type="color" value="{{ old('secondary_color', $business->secondary_color ?? '#ffffff') }}"
                         oninput="document.getElementById('txt_secondary').value=this.value"
@@ -119,19 +131,7 @@ $bgModeV2 = old('background_mode', $program?->background_solid_color ? 'color' :
                 </div>
             </div>
 
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Texto General</label>
-                <div class="flex items-center gap-2">
-                    <input type="color" value="{{ old('label_color', $business->label_color ?? '#cccccc') }}"
-                        oninput="document.getElementById('txt_label').value=this.value"
-                        class="h-10 w-24 shrink-0 rounded-lg border border-gray-300 cursor-pointer p-0.5 bg-white">
-                    <input type="text" id="txt_label" name="label_color"
-                        value="{{ old('label_color', $business->label_color ?? '#cccccc') }}"
-                        oninput="this.previousElementSibling.value=this.value"
-                        maxlength="7"
-                        class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                </div>
-            </div>
+           
 
         </div>
 

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Business;
 
 use App\Http\Controllers\Controller;
 use App\Models\Business;
-use App\Models\LoyaltyProgram;
 use App\Services\GoogleMapsLinkResolver;
 use App\Services\GoogleWalletService;
 use Illuminate\Http\Request;
@@ -77,56 +76,66 @@ class BusinessProfileController extends Controller
 
         $this->applyLocations($business, $resolvedLocations);
 
-        // Las imágenes para Wallet pertenecen al programa de lealtad del negocio. Si el
-        // negocio todavía no crea su programa (página "Programa de Lealtad"), no hay dónde
-        // guardarlas todavía — se ignoran silenciosamente hasta que el programa exista.
+        // Las imágenes para Wallet pertenecen al programa de lealtad del negocio. Antes, si el
+        // negocio todavía no había creado su programa (página "Programa de Lealtad" o Filament),
+        // este bloque completo se saltaba EN SILENCIO — ninguna imagen (fondo, sello lleno,
+        // sello vacío) tenía dónde guardarse, sin error ni aviso. El formulario igual mostraba
+        // éxito porque $business->fill($data)->save() de arriba sí se guardaba. Ahora se crea
+        // el programa con datos mínimos si todavía no existe, para que la primera vez también
+        // funcione — el negocio puede completar nombre/premio real después en "Programa de
+        // Lealtad" sin que eso afecte lo ya subido aquí.
         $program = $business->loyaltyPrograms()->first();
 
-        if ($program) {
-            $programData = ['total_stamps' => $data['total_stamps']];
+        if (! $program) {
+            $program = $business->loyaltyPrograms()->create([
+                'name'         => $business->name,
+                'reward_title' => 'Premio',
+            ]);
+        }
 
-            // "Color sólido" (Versión 2): sin archivo que subir — se limpia la imagen guardada
-            // para que el renderizador use un color de fondo en su lugar. Por defecto ese color
-            // es el mismo "Fondo de la tarjeta" del negocio; si activó "Elegir otro color" se
-            // guarda ese en su lugar (LoyaltyProgram::resolvedBackgroundColor()).
-            if (($data['background_mode'] ?? 'image') === 'color') {
-                if ($program->pass_background_image) {
-                    Storage::disk('public')->delete($program->pass_background_image);
-                }
-                $programData['pass_background_image'] = null;
-                $programData['background_solid_color'] = ($request->boolean('background_solid_custom') && filled($data['background_solid_color'] ?? null))
-                    ? $data['background_solid_color']
-                    : null;
-            } elseif ($request->hasFile('pass_background_image')) {
-                if ($program->pass_background_image) {
-                    Storage::disk('public')->delete($program->pass_background_image);
-                }
-                $programData['pass_background_image'] = $request->file('pass_background_image')->store('programs/stamps', 'public');
+        $programData = ['total_stamps' => $data['total_stamps']];
+
+        // "Color sólido" (Versión 2): sin archivo que subir — se limpia la imagen guardada
+        // para que el renderizador use un color de fondo en su lugar. Por defecto ese color
+        // es el mismo "Fondo de la tarjeta" del negocio; si activó "Elegir otro color" se
+        // guarda ese en su lugar (LoyaltyProgram::resolvedBackgroundColor()).
+        if (($data['background_mode'] ?? 'image') === 'color') {
+            if ($program->pass_background_image) {
+                Storage::disk('public')->delete($program->pass_background_image);
             }
+            $programData['pass_background_image'] = null;
+            $programData['background_solid_color'] = ($request->boolean('background_solid_custom') && filled($data['background_solid_color'] ?? null))
+                ? $data['background_solid_color']
+                : null;
+        } elseif ($request->hasFile('pass_background_image')) {
+            if ($program->pass_background_image) {
+                Storage::disk('public')->delete($program->pass_background_image);
+            }
+            $programData['pass_background_image'] = $request->file('pass_background_image')->store('programs/stamps', 'public');
+        }
 
-            foreach (['filled_stamp_image', 'empty_stamp_image'] as $imageField) {
-                if ($request->hasFile($imageField)) {
-                    if ($program->$imageField) {
-                        Storage::disk('public')->delete($program->$imageField);
-                    }
-                    $programData[$imageField] = $request->file($imageField)->store('programs/stamps', 'public');
+        foreach (['filled_stamp_image', 'empty_stamp_image'] as $imageField) {
+            if ($request->hasFile($imageField)) {
+                if ($program->$imageField) {
+                    Storage::disk('public')->delete($program->$imageField);
                 }
+                $programData[$imageField] = $request->file($imageField)->store('programs/stamps', 'public');
             }
+        }
 
-            $program->fill($programData)->save();
+        $program->fill($programData)->save();
 
-            // La ubicación vive en el negocio, pero Google Wallet la guarda en la clase del
-            // programa (merchantLocations). Se resincroniza aquí para que el cambio aplique
-            // sin esperar a que se emita una tarjeta nueva. Un fallo aquí no debe tumbar el
-            // guardado del perfil — solo se registra.
-            try {
-                app(GoogleWalletService::class)->ensureClass($program);
-            } catch (\Throwable $e) {
-                Log::warning('BusinessProfile: no se pudo sincronizar la ubicación con Google Wallet', [
-                    'business_id' => $business->id,
-                    'error'       => $e->getMessage(),
-                ]);
-            }
+        // La ubicación vive en el negocio, pero Google Wallet la guarda en la clase del
+        // programa (merchantLocations). Se resincroniza aquí para que el cambio aplique
+        // sin esperar a que se emita una tarjeta nueva. Un fallo aquí no debe tumbar el
+        // guardado del perfil — solo se registra.
+        try {
+            app(GoogleWalletService::class)->ensureClass($program);
+        } catch (\Throwable $e) {
+            Log::warning('BusinessProfile: no se pudo sincronizar la ubicación con Google Wallet', [
+                'business_id' => $business->id,
+                'error'       => $e->getMessage(),
+            ]);
         }
 
         return redirect()->route('business.profile')->with('success', 'Información del negocio actualizada.');
