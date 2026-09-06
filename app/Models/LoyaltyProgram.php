@@ -159,10 +159,4 @@ class LoyaltyProgram extends Model
 
         return file_exists($path) ? $path : resource_path('fonts/Roboto-Bold.ttf');
     }
-
-    /** @return array{stamp_count:int,reward_title:string}[] */
-    public function milestoneCounts(): array
-    {
-        return $this->milestones->map(fn ($m) => $m->stamp_count)->toArray();
-    }
 }

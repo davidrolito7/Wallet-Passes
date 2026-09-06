@@ -14,7 +14,12 @@ class LoyaltyRegistrationController extends Controller
     public function show(string $slug, int $program)
     {
         $business = Business::where('slug', $slug)->where('is_active', true)->firstOrFail();
-        $program  = LoyaltyProgram::with(['milestones' => fn ($q) => $q->orderBy('stamp_count')])
+        // LoyaltyProgram::milestones() mezcla los hitos de TODOS los sistemas de premios
+        // ordenados solo por stamp_count — con más de un sistema, el primer resultado puede
+        // pertenecer al segundo/tercer sistema en vez del primero. Antes de registrarse, al
+        // cliente le toca el primer sistema de premios (mismo criterio que
+        // LoyaltyService::createCard()), así que el "próximo premio" debe salir de ahí.
+        $program  = LoyaltyProgram::with('prizeSystems.milestones')
             ->where('id', $program)
             ->where('business_id', $business->id)
             ->where('is_active', true)

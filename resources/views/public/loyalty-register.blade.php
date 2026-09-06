@@ -127,7 +127,17 @@
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Próximo premio: <strong>{{ $program->milestones->first()?->reward_title ?? $program->reward_title }}</strong>
+                        @php
+                            // El cliente arranca en el primer sistema de premios (mismo criterio
+                            // que LoyaltyService::createCard()) — el "próximo premio" debe ser
+                            // el primer hito de ESE sistema, no el de menor stamp_count entre
+                            // todos los sistemas mezclados.
+                            $firstPrizeSystem = $program->prizeSystems->first();
+                            $nextRewardTitle = $firstPrizeSystem?->milestones->first()?->reward_title
+                                ?? $firstPrizeSystem?->reward_title
+                                ?? $program->reward_title;
+                        @endphp
+                        Próximo premio: <strong>{{ $nextRewardTitle }}</strong>
                     </div>
                 </div>
 
