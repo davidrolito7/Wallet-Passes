@@ -174,60 +174,78 @@ async function downloadQR() {
         doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
         doc.rect(0, 0, pageWidth, pageHeight, 'F');
 
-        let cursorY = 12;
+        // Layout fijo (nada de acumular alturas dinámicas) para que todo
+        // quede siempre alineado sin encimarse, sea cual sea el logo.
+        const logoBandTop = 9;
+        const logoBandHeight = 20;
 
-        // Logo del negocio, sobre una tarjeta blanca para que siempre se lea bien.
+        // Logo del negocio directo sobre el color de marca, sin caja blanca.
         if (cardData.logoUrl) {
             try {
                 const logo = await loadImageData(cardData.logoUrl);
-                const maxW = 55, maxH = 22;
+                const maxW = 58, maxH = 18;
                 const ratio = Math.min(maxW / logo.width, maxH / logo.height);
                 const w = logo.width * ratio;
                 const h = logo.height * ratio;
-                const padding = 5;
-                const boxW = w + padding * 2;
-                const boxH = h + padding * 2;
-                const boxX = centerX - boxW / 2;
-
-                doc.setFillColor(255, 255, 255);
-                doc.roundedRect(boxX, cursorY, boxW, boxH, 3, 3, 'F');
-                doc.addImage(logo.dataUrl, 'PNG', centerX - w / 2, cursorY + padding, w, h);
-                cursorY += boxH + 8;
+                doc.addImage(
+                    logo.dataUrl, 'PNG',
+                    centerX - w / 2,
+                    logoBandTop + (logoBandHeight - h) / 2,
+                    w, h
+                );
             } catch (e) {
-                cursorY += 4;
+                // Si el logo falla, seguimos con el resto del diseño.
             }
-        } else {
-            cursorY += 4;
         }
 
-        // Nombre del negocio.
+        // Línea decorativa que separa el logo del mensaje.
+        doc.setFillColor(labelColor[0], labelColor[1], labelColor[2]);
+        doc.roundedRect(centerX - 11, 33, 22, 0.8, 0.4, 0.4, 'F');
+
+        // Mensaje principal, en dos líneas fijas para que la altura sea
+        // siempre la misma y nunca se monte con el QR.
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(15);
+        doc.setFontSize(12);
         doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-        doc.text(cardData.businessName, centerX, cursorY, { align: 'center' });
-        cursorY += 8;
+        const messageLines = [
+            'Escanea el QR y agrega',
+            'nuestra tarjeta de lealtad',
+            'y empieza a recibir recompensas',
+        ];
+        const lineHeight = 5.6;
+        let textY = 41;
+        messageLines.forEach((line) => {
+            doc.text(line, centerX, textY, { align: 'center' });
+            textY += lineHeight;
+        });
 
-        // Texto instructivo.
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10.5);
-        doc.setTextColor(labelColor[0], labelColor[1], labelColor[2]);
-        const message = 'Escanea el QR y agrega nuestra tarjeta de lealtad';
-        const lines = doc.splitTextToSize(message, 78);
-        doc.text(lines, centerX, cursorY, { align: 'center' });
-        cursorY += lines.length * 5 + 6;
-
-        // Tarjeta blanca con el código QR.
-        const qrBoxSize = 62;
+        // Tarjeta blanca con el código QR, con una leve sombra del color de marca.
+        const qrBoxSize = 64;
+        const qrBoxTop = 60;
         const qrBoxX = centerX - qrBoxSize / 2;
-        doc.setFillColor(255, 255, 255);
-        doc.roundedRect(qrBoxX, cursorY, qrBoxSize, qrBoxSize, 4, 4, 'F');
-        const qrSize = 52;
-        doc.addImage(qrDataUrl, 'PNG', centerX - qrSize / 2, cursorY + (qrBoxSize - qrSize) / 2, qrSize, qrSize);
-        cursorY += qrBoxSize + 10;
 
-        // Logos de Apple Wallet / Google Wallet, al pie de la hoja.
+        doc.setFillColor(
+            Math.round(primaryColor[0] * 0.75),
+            Math.round(primaryColor[1] * 0.75),
+            Math.round(primaryColor[2] * 0.75)
+        );
+        doc.roundedRect(qrBoxX + 1.4, qrBoxTop + 1.4, qrBoxSize, qrBoxSize, 5, 5, 'F');
+
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(qrBoxX, qrBoxTop, qrBoxSize, qrBoxSize, 5, 5, 'F');
+
+        const qrSize = 56;
+        doc.addImage(
+            qrDataUrl, 'PNG',
+            centerX - qrSize / 2,
+            qrBoxTop + (qrBoxSize - qrSize) / 2,
+            qrSize, qrSize
+        );
+
+        // Logos de Apple Wallet / Google Wallet, debajo del QR sin encimarse.
         const badgeHeight = 9;
-        const gap = 4;
+        const badgeGap = 4;
+        const badgeTop = qrBoxTop + qrBoxSize + 8;
         const badges = [];
         for (const url of [cardData.appleWalletUrl, cardData.googleWalletUrl]) {
             const img = await loadImageData(url);
@@ -237,12 +255,11 @@ async function downloadQR() {
                 height: badgeHeight,
             });
         }
-        const totalWidth = badges.reduce((sum, b) => sum + b.width, 0) + gap * (badges.length - 1);
+        const totalWidth = badges.reduce((sum, b) => sum + b.width, 0) + badgeGap * (badges.length - 1);
         let badgeX = centerX - totalWidth / 2;
-        const badgeY = pageHeight - badgeHeight - 10;
         for (const badge of badges) {
-            doc.addImage(badge.dataUrl, 'PNG', badgeX, badgeY, badge.width, badge.height);
-            badgeX += badge.width + gap;
+            doc.addImage(badge.dataUrl, 'PNG', badgeX, badgeTop, badge.width, badge.height);
+            badgeX += badge.width + badgeGap;
         }
 
         doc.save(`qr-lealtad-${cardData.slug || 'negocio'}.pdf`);
