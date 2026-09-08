@@ -32,9 +32,9 @@
             </div>
 
             <div class="flex gap-3 justify-center">
-                <button onclick="downloadQR()"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
-                    Descargar QR
+                <button id="download-qr-btn" onclick="downloadQR()"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                    Descargar QR (PDF)
                 </button>
                 <button onclick="copyUrl()"
                         class="border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
@@ -58,9 +58,21 @@
 
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 @if($registerUrl)
 const qrUrl = @json($registerUrl);
+
+const cardData = {
+    businessName: @json($business->name),
+    slug: @json($business->slug),
+    logoUrl: @json($business->logoPublicUrl()),
+    primaryColor: @json($business->primary_color ?? '#1a1a2e'),
+    secondaryColor: @json($business->secondary_color ?? '#ffffff'),
+    labelColor: @json($business->label_color ?? '#cccccc'),
+    appleWalletUrl: @json(asset('wallet/AddtoAppleWallet.webp')),
+    googleWalletUrl: @json(asset('wallet/AddtoGoogleWallet.webp')),
+};
 
 const qr = new QRCode(document.getElementById('qrcode'), {
     text: qrUrl,
@@ -71,18 +83,176 @@ const qr = new QRCode(document.getElementById('qrcode'), {
     correctLevel: QRCode.CorrectLevel.H,
 });
 
-function downloadQR() {
-    setTimeout(() => {
-        const canvas = document.getElementById('qrcode').querySelector('canvas');
-        if (!canvas) {
-            alert('Error al generar el QR. Recarga la página e intenta de nuevo.');
-            return;
+function hexToRgb(hex) {
+    hex = (hex || '').replace('#', '').trim();
+    if (hex.length === 3) {
+        hex = hex.split('').map((c) => c + c).join('');
+    }
+    const num = parseInt(hex, 16);
+    if (isNaN(num) || hex.length !== 6) {
+        return [26, 26, 46];
+    }
+    return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+function loadImageData(url) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+            try {
+                resolve({
+                    dataUrl: canvas.toDataURL('image/png'),
+                    width: img.naturalWidth,
+                    height: img.naturalHeight,
+                });
+            } catch (e) {
+                reject(e);
+            }
+        };
+        img.onerror = () => reject(new Error('No se pudo cargar la imagen: ' + url));
+        img.src = url;
+    });
+}
+
+// Genera un QR aparte, en alta resolución, para que no se vea pixelado al imprimir.
+function buildHighResQrDataUrl() {
+    return new Promise((resolve, reject) => {
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.left = '-9999px';
+        document.body.appendChild(container);
+
+        new QRCode(container, {
+            text: qrUrl,
+            width: 600,
+            height: 600,
+            colorDark: '#1e1b4b',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H,
+        });
+
+        setTimeout(() => {
+            const canvas = container.querySelector('canvas');
+            if (!canvas) {
+                document.body.removeChild(container);
+                reject(new Error('No se pudo generar el QR en alta resolución.'));
+                return;
+            }
+            const dataUrl = canvas.toDataURL('image/png');
+            document.body.removeChild(container);
+            resolve(dataUrl);
+        }, 150);
+    });
+}
+
+async function downloadQR() {
+    const downloadBtn = document.getElementById('download-qr-btn');
+    const originalLabel = downloadBtn.textContent;
+    downloadBtn.disabled = true;
+    downloadBtn.textContent = 'Generando PDF...';
+
+    try {
+        const { jsPDF } = window.jspdf;
+
+        const primaryColor = hexToRgb(cardData.primaryColor);
+        const secondaryColor = hexToRgb(cardData.secondaryColor);
+        const labelColor = hexToRgb(cardData.labelColor);
+
+        const qrDataUrl = await buildHighResQrDataUrl();
+
+        const doc = new jsPDF({ unit: 'mm', format: 'a6', orientation: 'portrait' });
+        const pageWidth = 105;
+        const pageHeight = 148;
+        const centerX = pageWidth / 2;
+
+        // Fondo con el color de marca del negocio.
+        doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+        let cursorY = 12;
+
+        // Logo del negocio, sobre una tarjeta blanca para que siempre se lea bien.
+        if (cardData.logoUrl) {
+            try {
+                const logo = await loadImageData(cardData.logoUrl);
+                const maxW = 55, maxH = 22;
+                const ratio = Math.min(maxW / logo.width, maxH / logo.height);
+                const w = logo.width * ratio;
+                const h = logo.height * ratio;
+                const padding = 5;
+                const boxW = w + padding * 2;
+                const boxH = h + padding * 2;
+                const boxX = centerX - boxW / 2;
+
+                doc.setFillColor(255, 255, 255);
+                doc.roundedRect(boxX, cursorY, boxW, boxH, 3, 3, 'F');
+                doc.addImage(logo.dataUrl, 'PNG', centerX - w / 2, cursorY + padding, w, h);
+                cursorY += boxH + 8;
+            } catch (e) {
+                cursorY += 4;
+            }
+        } else {
+            cursorY += 4;
         }
-        const link = document.createElement('a');
-        link.download = 'qr-registro.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-    }, 100);
+
+        // Nombre del negocio.
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(15);
+        doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        doc.text(cardData.businessName, centerX, cursorY, { align: 'center' });
+        cursorY += 8;
+
+        // Texto instructivo.
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10.5);
+        doc.setTextColor(labelColor[0], labelColor[1], labelColor[2]);
+        const message = 'Escanea el QR y agrega nuestra tarjeta de lealtad';
+        const lines = doc.splitTextToSize(message, 78);
+        doc.text(lines, centerX, cursorY, { align: 'center' });
+        cursorY += lines.length * 5 + 6;
+
+        // Tarjeta blanca con el código QR.
+        const qrBoxSize = 62;
+        const qrBoxX = centerX - qrBoxSize / 2;
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(qrBoxX, cursorY, qrBoxSize, qrBoxSize, 4, 4, 'F');
+        const qrSize = 52;
+        doc.addImage(qrDataUrl, 'PNG', centerX - qrSize / 2, cursorY + (qrBoxSize - qrSize) / 2, qrSize, qrSize);
+        cursorY += qrBoxSize + 10;
+
+        // Logos de Apple Wallet / Google Wallet, al pie de la hoja.
+        const badgeHeight = 9;
+        const gap = 4;
+        const badges = [];
+        for (const url of [cardData.appleWalletUrl, cardData.googleWalletUrl]) {
+            const img = await loadImageData(url);
+            badges.push({
+                dataUrl: img.dataUrl,
+                width: badgeHeight * (img.width / img.height),
+                height: badgeHeight,
+            });
+        }
+        const totalWidth = badges.reduce((sum, b) => sum + b.width, 0) + gap * (badges.length - 1);
+        let badgeX = centerX - totalWidth / 2;
+        const badgeY = pageHeight - badgeHeight - 10;
+        for (const badge of badges) {
+            doc.addImage(badge.dataUrl, 'PNG', badgeX, badgeY, badge.width, badge.height);
+            badgeX += badge.width + gap;
+        }
+
+        doc.save(`qr-lealtad-${cardData.slug || 'negocio'}.pdf`);
+    } catch (e) {
+        console.error(e);
+        alert('Ocurrió un error al generar el PDF. Intenta de nuevo.');
+    } finally {
+        downloadBtn.disabled = false;
+        downloadBtn.textContent = originalLabel;
+    }
 }
 
 function copyUrl() {
