@@ -72,6 +72,7 @@ const cardData = {
     labelColor: @json($business->label_color ?? '#cccccc'),
     appleWalletUrl: @json(asset('wallet/AddtoAppleWallet.webp')),
     googleWalletUrl: @json(asset('wallet/AddtoGoogleWallet.webp')),
+    fontUrl: @json(asset('fonts/Poppins-SemiBold.ttf')),
 };
 
 const qr = new QRCode(document.getElementById('qrcode'), {
@@ -93,6 +94,18 @@ function hexToRgb(hex) {
         return [26, 26, 46];
     }
     return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+async function loadFontBase64(url) {
+    const res = await fetch(url);
+    const buffer = await res.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
 }
 
 function loadImageData(url) {
@@ -170,6 +183,17 @@ async function downloadQR() {
         const pageHeight = 148;
         const centerX = pageWidth / 2;
 
+        // Tipografía atractiva para el mensaje (con respaldo a Helvetica si falla la carga).
+        let messageFont = { family: 'helvetica', style: 'bold' };
+        try {
+            const fontBase64 = await loadFontBase64(cardData.fontUrl);
+            doc.addFileToVFS('Poppins-SemiBold.ttf', fontBase64);
+            doc.addFont('Poppins-SemiBold.ttf', 'Poppins', 'normal');
+            messageFont = { family: 'Poppins', style: 'normal' };
+        } catch (e) {
+            // Sin conexión a la fuente: seguimos con Helvetica.
+        }
+
         // Fondo con el color de marca del negocio.
         doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
         doc.rect(0, 0, pageWidth, pageHeight, 'F');
@@ -202,26 +226,33 @@ async function downloadQR() {
         doc.setFillColor(labelColor[0], labelColor[1], labelColor[2]);
         doc.roundedRect(centerX - 11, 33, 22, 0.8, 0.4, 0.4, 'F');
 
-        // Mensaje principal, en dos líneas fijas para que la altura sea
-        // siempre la misma y nunca se monte con el QR.
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(12);
+        // Mensaje principal: se ajusta solo según el ancho disponible
+        // (nada de saltos de línea forzados a mano).
+        doc.setFont(messageFont.family, messageFont.style);
+        doc.setFontSize(13);
         doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-        const messageLines = [
-            'Escanea el QR y agrega',
-            'nuestra tarjeta de lealtad',
-            'y empieza a recibir recompensas',
-        ];
-        const lineHeight = 5.6;
+        const message = 'Escanea el QR y agrega nuestra tarjeta de lealtad y empieza a recibir recompensas';
+        const messageLines = doc.splitTextToSize(message, 82);
+        const lineHeight = 6.2;
         let textY = 41;
         messageLines.forEach((line) => {
-            doc.text(line, centerX, textY, { align: 'center' });
+            doc.text(line, centerX, textY, { align: 'center', charSpace: 0.1 });
             textY += lineHeight;
         });
 
         // Tarjeta blanca con el código QR, con una leve sombra del color de marca.
-        const qrBoxSize = 64;
-        const qrBoxTop = 60;
+        // Se coloca justo debajo del mensaje (sea cual sea su alto real),
+        // así nunca queda encimada.
+        const badgeHeight = 9;
+        const badgeGapBelowQr = 8;
+        const bottomSafeLimit = 142;
+        let qrBoxSize = 64;
+        const qrBoxTop = textY - lineHeight + 10;
+        // Si el mensaje ocupó más líneas de lo usual, la tarjeta del QR se
+        // encoge lo justo para que los logos de wallet nunca queden encimados.
+        if (qrBoxTop + qrBoxSize + badgeGapBelowQr + badgeHeight > bottomSafeLimit) {
+            qrBoxSize = Math.max(44, bottomSafeLimit - badgeGapBelowQr - badgeHeight - qrBoxTop);
+        }
         const qrBoxX = centerX - qrBoxSize / 2;
 
         doc.setFillColor(
@@ -234,7 +265,7 @@ async function downloadQR() {
         doc.setFillColor(255, 255, 255);
         doc.roundedRect(qrBoxX, qrBoxTop, qrBoxSize, qrBoxSize, 5, 5, 'F');
 
-        const qrSize = 56;
+        const qrSize = qrBoxSize - 8;
         doc.addImage(
             qrDataUrl, 'PNG',
             centerX - qrSize / 2,
@@ -243,9 +274,8 @@ async function downloadQR() {
         );
 
         // Logos de Apple Wallet / Google Wallet, debajo del QR sin encimarse.
-        const badgeHeight = 9;
         const badgeGap = 4;
-        const badgeTop = qrBoxTop + qrBoxSize + 8;
+        const badgeTop = qrBoxTop + qrBoxSize + badgeGapBelowQr;
         const badges = [];
         for (const url of [cardData.appleWalletUrl, cardData.googleWalletUrl]) {
             const img = await loadImageData(url);
