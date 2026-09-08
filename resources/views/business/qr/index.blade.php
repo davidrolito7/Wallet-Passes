@@ -82,7 +82,6 @@
 @endsection
 
 @push('scripts')
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -184,7 +183,6 @@ function loadImageData(url) {
     });
 }
 
-// Genera un QR aparte, en alta resolución, para que no se vea pixelado al imprimir.
 function buildHighResQrDataUrl() {
     return new Promise((resolve, reject) => {
         const container = document.createElement('div');
@@ -251,12 +249,6 @@ async function downloadQR() {
         const pageHeight = 148;
         const centerX = pageWidth / 2;
 
-        /*
-        |--------------------------------------------------------------------------
-        | Fuente principal
-        |--------------------------------------------------------------------------
-        */
-
         let messageFont = {
             family: 'helvetica',
             style: 'bold'
@@ -283,12 +275,6 @@ async function downloadQR() {
         } catch (e) {
             // Si falla la fuente seguimos con Helvetica.
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Fuente destacada
-        |--------------------------------------------------------------------------
-        */
 
         let accentFont = {
             family: 'helvetica',
@@ -339,7 +325,7 @@ async function downloadQR() {
 
         /*
         |--------------------------------------------------------------------------
-        | Logo
+        | Logo del negocio
         |--------------------------------------------------------------------------
         */
 
@@ -370,7 +356,7 @@ async function downloadQR() {
                     h
                 );
             } catch (e) {
-                // Si el logo falla seguimos.
+                // Si falla el logo seguimos.
             }
         }
 
@@ -387,10 +373,10 @@ async function downloadQR() {
         );
 
         doc.roundedRect(
-            centerX - 6,
-            33,
-            12,
-            0.65,
+            centerX - 5,
+            34,
+            10,
+            0.6,
             0.3,
             0.3,
             'F'
@@ -398,7 +384,7 @@ async function downloadQR() {
 
         /*
         |--------------------------------------------------------------------------
-        | Etiqueta superior
+        | Título principal
         |--------------------------------------------------------------------------
         */
 
@@ -407,36 +393,7 @@ async function downloadQR() {
             messageFont.style
         );
 
-        doc.setFontSize(6);
-
-        doc.setTextColor(
-            labelColor[0],
-            labelColor[1],
-            labelColor[2]
-        );
-
-        doc.text(
-            'PROGRAMA DE LEALTAD',
-            centerX,
-            40,
-            {
-                align: 'center',
-                charSpace: 1
-            }
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Título
-        |--------------------------------------------------------------------------
-        */
-
-        doc.setFont(
-            messageFont.family,
-            messageFont.style
-        );
-
-        doc.setFontSize(13.5);
+        doc.setFontSize(14.5);
 
         doc.setTextColor(
             secondaryColor[0],
@@ -447,7 +404,7 @@ async function downloadQR() {
         doc.text(
             'Tu lealtad tiene',
             centerX,
-            48,
+            43.5,
             {
                 align: 'center'
             }
@@ -455,7 +412,7 @@ async function downloadQR() {
 
         /*
         |--------------------------------------------------------------------------
-        | Palabra destacada
+        | Recompensa
         |--------------------------------------------------------------------------
         */
 
@@ -464,7 +421,7 @@ async function downloadQR() {
             accentFont.style
         );
 
-        doc.setFontSize(20);
+        doc.setFontSize(21);
 
         doc.setTextColor(
             secondaryColor[0],
@@ -475,7 +432,7 @@ async function downloadQR() {
         doc.text(
             'recompensa',
             centerX,
-            56,
+            52,
             {
                 align: 'center'
             }
@@ -483,22 +440,22 @@ async function downloadQR() {
 
         /*
         |--------------------------------------------------------------------------
-        | Texto secundario
+        | Texto explicativo
         |--------------------------------------------------------------------------
         */
 
         const mutedTextColor = [
             Math.round(
-                secondaryColor[0] * 0.78 +
-                primaryColor[0] * 0.22
+                secondaryColor[0] * 0.82 +
+                primaryColor[0] * 0.18
             ),
             Math.round(
-                secondaryColor[1] * 0.78 +
-                primaryColor[1] * 0.22
+                secondaryColor[1] * 0.82 +
+                primaryColor[1] * 0.18
             ),
             Math.round(
-                secondaryColor[2] * 0.78 +
-                primaryColor[2] * 0.22
+                secondaryColor[2] * 0.82 +
+                primaryColor[2] * 0.18
             ),
         ];
 
@@ -507,7 +464,7 @@ async function downloadQR() {
             messageFont.style
         );
 
-        doc.setFontSize(7.2);
+        doc.setFontSize(8.4);
 
         doc.setTextColor(
             mutedTextColor[0],
@@ -516,17 +473,17 @@ async function downloadQR() {
         );
 
         const secondaryMessage =
-            'Escanea el código y agrega tu tarjeta digital.';
+            'Escanea el código y agrega nuestra tarjeta de lealtad.';
 
         const secondaryLines = doc.splitTextToSize(
             secondaryMessage,
-            68
+            74
         );
 
         doc.text(
             secondaryLines,
             centerX,
-            63.5,
+            60.5,
             {
                 align: 'center',
                 lineHeightFactor: 1.25
@@ -535,7 +492,7 @@ async function downloadQR() {
 
         /*
         |--------------------------------------------------------------------------
-        | Microtexto
+        | Acumula · Disfruta · Repite
         |--------------------------------------------------------------------------
         */
 
@@ -544,7 +501,7 @@ async function downloadQR() {
             messageFont.style
         );
 
-        doc.setFontSize(5.3);
+        doc.setFontSize(6.2);
 
         doc.setTextColor(
             labelColor[0],
@@ -555,10 +512,10 @@ async function downloadQR() {
         doc.text(
             'ACUMULA  ·  DISFRUTA  ·  REPITE',
             centerX,
-            70.5,
+            69.5,
             {
                 align: 'center',
-                charSpace: 0.35
+                charSpace: 0.28
             }
         );
 
@@ -573,8 +530,7 @@ async function downloadQR() {
         const bottomSafeLimit = 142;
 
         let qrBoxSize = 56;
-
-        const qrBoxTop = 75;
+        const qrBoxTop = 74;
 
         if (
             qrBoxTop +
@@ -592,11 +548,13 @@ async function downloadQR() {
             );
         }
 
-        const qrBoxX = centerX - qrBoxSize / 2;
+        const qrBoxX =
+            centerX -
+            qrBoxSize / 2;
 
         /*
         |--------------------------------------------------------------------------
-        | Sombra QR
+        | Sombra del QR
         |--------------------------------------------------------------------------
         */
 
@@ -618,7 +576,7 @@ async function downloadQR() {
 
         /*
         |--------------------------------------------------------------------------
-        | Caja blanca QR
+        | Caja blanca del QR
         |--------------------------------------------------------------------------
         */
 
@@ -644,7 +602,8 @@ async function downloadQR() {
         |--------------------------------------------------------------------------
         */
 
-        const qrSize = qrBoxSize - 8;
+        const qrSize =
+            qrBoxSize - 8;
 
         doc.addImage(
             qrDataUrl,
@@ -657,7 +616,7 @@ async function downloadQR() {
 
         /*
         |--------------------------------------------------------------------------
-        | Wallet badges
+        | Apple Wallet / Google Wallet
         |--------------------------------------------------------------------------
         */
 
@@ -708,12 +667,6 @@ async function downloadQR() {
                 badge.width +
                 badgeGap;
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Descargar
-        |--------------------------------------------------------------------------
-        */
 
         doc.save(
             `qr-lealtad-${cardData.slug || 'negocio'}.pdf`
