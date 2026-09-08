@@ -52,18 +52,15 @@
                 <button id="download-qr-btn"
                         onclick="downloadQR()"
                         class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
-                    Descargar QR (PDF)
+                    Descargar diseño para imprimir
                 </button>
 
-                <button onclick="copyUrl()"
-                        class="border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
-                    Copiar enlace
+                <button id="download-qr-only-btn"
+                        onclick="downloadQrOnly()"
+                        class="border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium px-5 py-2.5 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                    Descargar solo QR
                 </button>
             </div>
-
-            <p id="copy-confirm" class="text-xs text-green-600 mt-2 hidden">
-                ¡Enlace copiado!
-            </p>
         </div>
 
         <div class="mt-6 bg-indigo-50 border border-indigo-100 rounded-xl p-5">
@@ -684,17 +681,30 @@ async function downloadQR() {
     }
 }
 
-function copyUrl() {
-    navigator.clipboard.writeText(qrUrl).then(() => {
-        const el = document.getElementById('copy-confirm');
+async function downloadQrOnly() {
+    const btn = document.getElementById('download-qr-only-btn');
+    const originalLabel = btn.textContent;
 
-        el.classList.remove('hidden');
+    btn.disabled = true;
+    btn.textContent = 'Generando...';
 
-        setTimeout(
-            () => el.classList.add('hidden'),
-            2000
+    try {
+        const dataUrl = await buildHighResQrDataUrl();
+
+        const link = document.createElement('a');
+        link.download = `qr-${cardData.slug || 'negocio'}.png`;
+        link.href = dataUrl;
+        link.click();
+    } catch (e) {
+        console.error(e);
+
+        alert(
+            'Ocurrió un error al generar el QR. Intenta de nuevo.'
         );
-    });
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+    }
 }
 
 @endif
