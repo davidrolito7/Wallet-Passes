@@ -73,6 +73,7 @@ const cardData = {
     appleWalletUrl: @json(asset('wallet/AddtoAppleWallet.webp')),
     googleWalletUrl: @json(asset('wallet/AddtoGoogleWallet.webp')),
     fontUrl: @json(asset('fonts/Poppins-SemiBold.ttf')),
+    accentFontUrl: @json(asset('fonts/PTSerif-BoldItalic.ttf')),
 };
 
 const qr = new QRCode(document.getElementById('qrcode'), {
@@ -194,6 +195,17 @@ async function downloadQR() {
             // Sin conexión a la fuente: seguimos con Helvetica.
         }
 
+        // Tipografía distinta para resaltar la palabra "recompensas".
+        let accentFont = { family: 'helvetica', style: 'italic' };
+        try {
+            const accentBase64 = await loadFontBase64(cardData.accentFontUrl);
+            doc.addFileToVFS('PTSerif-BoldItalic.ttf', accentBase64);
+            doc.addFont('PTSerif-BoldItalic.ttf', 'PTSerif', 'bolditalic');
+            accentFont = { family: 'PTSerif', style: 'bolditalic' };
+        } catch (e) {
+            // Sin conexión a la fuente: seguimos con Helvetica itálica.
+        }
+
         // Fondo con el color de marca del negocio.
         doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
         doc.rect(0, 0, pageWidth, pageHeight, 'F');
@@ -227,18 +239,26 @@ async function downloadQR() {
         doc.roundedRect(centerX - 11, 33, 22, 0.8, 0.4, 0.4, 'F');
 
         // Mensaje principal: se ajusta solo según el ancho disponible
-        // (nada de saltos de línea forzados a mano).
+        // (nada de saltos de línea forzados a mano). La palabra "recompensas"
+        // se destaca aparte, en una tipografía distinta y más grande.
         doc.setFont(messageFont.family, messageFont.style);
         doc.setFontSize(13);
         doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-        const message = 'Escanea el QR y agrega nuestra tarjeta de lealtad y empieza a recibir recompensas';
-        const messageLines = doc.splitTextToSize(message, 82);
+        const baseMessage = 'Agrega nuestra tarjeta de lealtad y empieza a recibir';
+        const messageLines = doc.splitTextToSize(baseMessage, 82);
         const lineHeight = 6.2;
-        let textY = 41;
+        let cursorY = 41;
         messageLines.forEach((line) => {
-            doc.text(line, centerX, textY, { align: 'center', charSpace: 0.1 });
-            textY += lineHeight;
+            doc.text(line, centerX, cursorY, { align: 'center', charSpace: 0.1 });
+            cursorY += lineHeight;
         });
+
+        cursorY += 3;
+        doc.setFont(accentFont.family, accentFont.style);
+        doc.setFontSize(23);
+        doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        doc.text('recompensas', centerX, cursorY, { align: 'center' });
+        cursorY += 12;
 
         // Tarjeta blanca con el código QR, con una leve sombra del color de marca.
         // Se coloca justo debajo del mensaje (sea cual sea su alto real),
@@ -246,8 +266,8 @@ async function downloadQR() {
         const badgeHeight = 9;
         const badgeGapBelowQr = 8;
         const bottomSafeLimit = 142;
-        let qrBoxSize = 64;
-        const qrBoxTop = textY - lineHeight + 10;
+        let qrBoxSize = 58;
+        const qrBoxTop = cursorY;
         // Si el mensaje ocupó más líneas de lo usual, la tarjeta del QR se
         // encoge lo justo para que los logos de wallet nunca queden encimados.
         if (qrBoxTop + qrBoxSize + badgeGapBelowQr + badgeHeight > bottomSafeLimit) {
