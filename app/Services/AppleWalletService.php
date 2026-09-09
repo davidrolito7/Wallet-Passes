@@ -166,6 +166,22 @@ class AppleWalletService
         // Usar el builder para actualizar todos los campos en un único save() → un único push APNS.
         $builder = $pass->builder();
 
+        // Colores + logo/icono: igual que los sellos (regenerados arriba), createPass() los fija
+        // solo al emitir el pase. Sin esto, si el negocio cambia su color de marca o su logo
+        // después de que un cliente ya instaló el pase, ese pase se queda con los valores viejos
+        // para siempre — nunca se refrescan hasta ahora. iconPathsForBusiness/logoPathsForBusiness
+        // cachean por hash de logo+color, así que si nada cambió esto no regenera archivos.
+        $builder
+            ->setBackgroundColor($business->primary_color)
+            ->setForegroundColor($business->secondary_color)
+            ->setLabelColor($business->label_color)
+            ->setIconImage(...$this->iconPathsForBusiness($card));
+
+        $logoPaths = $this->logoPathsForBusiness($business);
+        if ($logoPaths) {
+            $builder->setLogoImage(...$logoPaths);
+        }
+
         // Ubicaciones: se agregan al pase las que el negocio tiene activas y que todavía no
         // trae guardadas, sin duplicar las que ya están (addLocation() siempre suma, nunca
         // reemplaza) ni pasar el tope de 10 que impone Apple. Esto cubre tanto el backfill
