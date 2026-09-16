@@ -94,10 +94,9 @@ class AppleWalletService
         }
 
         // Ubicaciones: la tarjeta aparece sola en la pantalla de bloqueo al acercarse a
-        // cualquiera de los locales del negocio (hasta 10, tope de Apple). Se fija solo al
-        // crear el pase — el builder no ofrece forma de reemplazar ubicaciones ya guardadas en
-        // un pase existente (addLocation() siempre agrega, nunca reemplaza), así que si el
-        // negocio cambia sus locales después, los pases ya instalados no se enteran.
+        // cualquiera de los locales del negocio (hasta 10, tope de Apple). updatePass()
+        // reconstruye esta lista por completo en cada actualización, así que un cambio de
+        // local o de mensaje después de instalado el pase sí se refleja.
         $locations = $business->activeLocations()->take(self::MAX_LOCATIONS_PER_PASS)->get();
 
         if ($locations->isNotEmpty()) {
@@ -182,27 +181,19 @@ class AppleWalletService
             $builder->setLogoImage(...$logoPaths);
         }
 
-        // Ubicaciones: se agregan al pase las que el negocio tiene activas y que todavía no
-        // trae guardadas, sin duplicar las que ya están (addLocation() siempre suma, nunca
-        // reemplaza) ni pasar el tope de 10 que impone Apple. Esto cubre tanto el backfill
-        // inicial (pase sin ninguna ubicación) como agregar un local nuevo a un pase que ya
-        // tenía otros — antes solo funcionaba el primer caso.
-        $savedLocations = $pass->content['locations'] ?? [];
-        $savedKeys      = collect($savedLocations)
-            ->map(fn ($location) => $this->locationKey((float) $location['latitude'], (float) $location['longitude']))
-            ->all();
+        // Ubicaciones: se reconstruyen por completo con lo que el negocio tiene activo ahora
+        // mismo, en vez de solo agregar las que faltan. addLocation() siempre suma, nunca
+        // reemplaza — por eso antes, si un local ya estaba guardado en el pase, cambiar su
+        // relevant_text nunca se reflejaba (se detectaba como "ya guardado" y se saltaba), y
+        // desactivar un local tampoco lo quitaba del pase. resetLocations() vacía lo hidratado
+        // del pase existente para que esta lista sea siempre la fuente de verdad. Si nada
+        // cambió, el JSON resultante es idéntico al anterior y no dispara push de más.
+        $locations = $business->activeLocations()->take(self::MAX_LOCATIONS_PER_PASS)->get();
 
-        $missingLocations = $business->activeLocations()
-            ->get()
-            ->reject(fn ($location) => in_array(
-                $this->locationKey((float) $location->latitude, (float) $location->longitude),
-                $savedKeys,
-                true,
-            ))
-            ->take(max(0, self::MAX_LOCATIONS_PER_PASS - count($savedLocations)));
+        $builder->resetLocations();
 
-        if ($missingLocations->isNotEmpty()) {
-            foreach ($missingLocations as $location) {
+        if ($locations->isNotEmpty()) {
+            foreach ($locations as $location) {
                 $builder->addLocation(
                     latitude: (float) $location->latitude,
                     longitude: (float) $location->longitude,
@@ -384,16 +375,6 @@ class AppleWalletService
         }
 
         return false;
-    }
-
-    /**
-     * Clave de comparación para detectar si una ubicación ya está guardada en el pase.
-     * Redondea a 6 decimales (~11 cm de precisión) para que no falle por diferencias de
-     * punto flotante entre lo guardado y lo que viene de la base de datos.
-     */
-    private function locationKey(float $latitude, float $longitude): string
-    {
-        return round($latitude, 6).','.round($longitude, 6);
     }
 
     private function contactText(LoyaltyCard $card): string

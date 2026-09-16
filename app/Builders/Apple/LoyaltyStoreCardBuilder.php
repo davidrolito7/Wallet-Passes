@@ -32,4 +32,16 @@ class LoyaltyStoreCardBuilder extends StoreCardPassBuilder
 
         return $this;
     }
+
+    /**
+     * Vacía las ubicaciones ya hidratadas desde el pase existente. addLocation() siempre suma,
+     * nunca reemplaza, así que sin esto no hay forma de refrescar el relevantText de una
+     * ubicación ya guardada ni de quitar una que el negocio desactivó.
+     */
+    public function resetLocations(): self
+    {
+        $this->locations = [];
+
+        return $this;
+    }
 }
