@@ -236,15 +236,64 @@ async function downloadQR() {
 
         const qrDataUrl = await buildHighResQrDataUrl();
 
+        /*
+        |--------------------------------------------------------------------------
+        | Tamaño del PDF
+        |--------------------------------------------------------------------------
+        | Antes: A6 = 105 x 148 mm.
+        | Ahora: A5 = 148 x 210 mm.
+        | Se conserva la misma proporción del diseño original, solo escalado.
+        */
+        const scale = 148 / 105;
+        const u = (value) => value * scale;
+
+        const pageWidth = 148;
+        const pageHeight = 210;
+        const centerX = pageWidth / 2;
+
         const doc = new jsPDF({
             unit: 'mm',
-            format: 'a6',
-            orientation: 'portrait'
+            format: [pageWidth, pageHeight],
+            orientation: 'portrait',
+            compress: true
         });
 
-        const pageWidth = 105;
-        const pageHeight = 148;
-        const centerX = pageWidth / 2;
+        /*
+        |--------------------------------------------------------------------------
+        | Preparar PNG para impresión
+        |--------------------------------------------------------------------------
+        | Algunas impresoras/PDF renderers interpretan mal el canal alfa de PNG
+        | transparentes y muestran un fondo gris/oscuro al imprimir.
+        |
+        | Para evitarlo, aplanamos únicamente las imágenes decorativas contra
+        | el mismo color de fondo del PDF y las insertamos como JPEG de alta
+        | calidad. El QR se mantiene como PNG para conservar máxima nitidez.
+        */
+        const flattenForPrint = async (imageData, backgroundRgb) => {
+            const img = new Image();
+
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = imageData.dataUrl;
+            });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(imageData.width));
+            canvas.height = Math.max(1, Math.round(imageData.height));
+
+            const ctx = canvas.getContext('2d', { alpha: false });
+
+            ctx.fillStyle = `rgb(${backgroundRgb[0]}, ${backgroundRgb[1]}, ${backgroundRgb[2]})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            return {
+                dataUrl: canvas.toDataURL('image/jpeg', 0.98),
+                width: imageData.width,
+                height: imageData.height
+            };
+        };
 
         let messageFont = {
             family: 'helvetica',
@@ -326,15 +375,16 @@ async function downloadQR() {
         |--------------------------------------------------------------------------
         */
 
-        const logoBandTop = 9;
-        const logoBandHeight = 20;
+        const logoBandTop = u(9);
+        const logoBandHeight = u(20);
 
         if (cardData.logoUrl) {
             try {
-                const logo = await loadImageData(cardData.logoUrl);
+                const originalLogo = await loadImageData(cardData.logoUrl);
+                const logo = await flattenForPrint(originalLogo, primaryColor);
 
-                const maxW = 58;
-                const maxH = 18;
+                const maxW = u(58);
+                const maxH = u(18);
 
                 const ratio = Math.min(
                     maxW / logo.width,
@@ -346,11 +396,13 @@ async function downloadQR() {
 
                 doc.addImage(
                     logo.dataUrl,
-                    'PNG',
+                    'JPEG',
                     centerX - w / 2,
                     logoBandTop + (logoBandHeight - h) / 2,
                     w,
-                    h
+                    h,
+                    undefined,
+                    'FAST'
                 );
             } catch (e) {
                 // Si falla el logo seguimos.
@@ -370,12 +422,12 @@ async function downloadQR() {
         );
 
         doc.roundedRect(
-            centerX - 5,
-            34,
-            10,
-            0.6,
-            0.3,
-            0.3,
+            centerX - u(5),
+            u(34),
+            u(10),
+            u(0.6),
+            u(0.3),
+            u(0.3),
             'F'
         );
 
@@ -390,7 +442,7 @@ async function downloadQR() {
             messageFont.style
         );
 
-        doc.setFontSize(14.5);
+        doc.setFontSize(14.5 * scale);
 
         doc.setTextColor(
             secondaryColor[0],
@@ -401,7 +453,7 @@ async function downloadQR() {
         doc.text(
             'Tu lealtad tiene',
             centerX,
-            43.5,
+            u(43.5),
             {
                 align: 'center'
             }
@@ -418,7 +470,7 @@ async function downloadQR() {
             accentFont.style
         );
 
-        doc.setFontSize(21);
+        doc.setFontSize(21 * scale);
 
         doc.setTextColor(
             secondaryColor[0],
@@ -429,7 +481,7 @@ async function downloadQR() {
         doc.text(
             'recompensa',
             centerX,
-            52,
+            u(52),
             {
                 align: 'center'
             }
@@ -461,7 +513,7 @@ async function downloadQR() {
             messageFont.style
         );
 
-        doc.setFontSize(8.4);
+        doc.setFontSize(8.4 * scale);
 
         doc.setTextColor(
             mutedTextColor[0],
@@ -474,13 +526,13 @@ async function downloadQR() {
 
         const secondaryLines = doc.splitTextToSize(
             secondaryMessage,
-            74
+            u(74)
         );
 
         doc.text(
             secondaryLines,
             centerX,
-            60.5,
+            u(60.5),
             {
                 align: 'center',
                 lineHeightFactor: 1.25
@@ -498,7 +550,7 @@ async function downloadQR() {
             messageFont.style
         );
 
-        doc.setFontSize(6.2);
+        doc.setFontSize(6.2 * scale);
 
         doc.setTextColor(
             labelColor[0],
@@ -509,10 +561,10 @@ async function downloadQR() {
         doc.text(
             'ACUMULA  ·  DISFRUTA  ·  REPITE',
             centerX,
-            69.5,
+            u(69.5),
             {
                 align: 'center',
-                charSpace: 0.28
+                charSpace: 0.28 * scale
             }
         );
 
@@ -522,12 +574,12 @@ async function downloadQR() {
         |--------------------------------------------------------------------------
         */
 
-        const badgeHeight = 9;
-        const badgeGapBelowQr = 7;
-        const bottomSafeLimit = 142;
+        const badgeHeight = u(9);
+        const badgeGapBelowQr = u(7);
+        const bottomSafeLimit = u(142);
 
-        let qrBoxSize = 56;
-        const qrBoxTop = 74;
+        let qrBoxSize = u(56);
+        const qrBoxTop = u(74);
 
         if (
             qrBoxTop +
@@ -537,7 +589,7 @@ async function downloadQR() {
             bottomSafeLimit
         ) {
             qrBoxSize = Math.max(
-                44,
+                u(44),
                 bottomSafeLimit -
                 badgeGapBelowQr -
                 badgeHeight -
@@ -562,12 +614,12 @@ async function downloadQR() {
         );
 
         doc.roundedRect(
-            qrBoxX + 0.8,
-            qrBoxTop + 0.8,
+            qrBoxX + u(0.8),
+            qrBoxTop + u(0.8),
             qrBoxSize,
             qrBoxSize,
-            5,
-            5,
+            u(5),
+            u(5),
             'F'
         );
 
@@ -588,8 +640,8 @@ async function downloadQR() {
             qrBoxTop,
             qrBoxSize,
             qrBoxSize,
-            5,
-            5,
+            u(5),
+            u(5),
             'F'
         );
 
@@ -600,7 +652,7 @@ async function downloadQR() {
         */
 
         const qrSize =
-            qrBoxSize - 8;
+            qrBoxSize - u(8);
 
         doc.addImage(
             qrDataUrl,
@@ -617,7 +669,7 @@ async function downloadQR() {
         |--------------------------------------------------------------------------
         */
 
-        const badgeGap = 4;
+        const badgeGap = u(4);
 
         const badgeTop =
             qrBoxTop +
@@ -630,7 +682,8 @@ async function downloadQR() {
             cardData.appleWalletUrl,
             cardData.googleWalletUrl
         ]) {
-            const img = await loadImageData(url);
+            const originalImg = await loadImageData(url);
+            const img = await flattenForPrint(originalImg, primaryColor);
 
             badges.push({
                 dataUrl: img.dataUrl,
@@ -653,11 +706,13 @@ async function downloadQR() {
         for (const badge of badges) {
             doc.addImage(
                 badge.dataUrl,
-                'PNG',
+                'JPEG',
                 badgeX,
                 badgeTop,
                 badge.width,
-                badge.height
+                badge.height,
+                undefined,
+                'FAST'
             );
 
             badgeX +=
