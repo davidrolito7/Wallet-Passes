@@ -241,14 +241,14 @@ async function downloadQR() {
         | Tamaño del PDF
         |--------------------------------------------------------------------------
         | Antes: A6 = 105 x 148 mm.
-        | Ahora: A5 = 148 x 210 mm.
-        | Se conserva la misma proporción del diseño original, solo escalado.
+        | Ahora: 120 x 169.14 mm, aproximadamente 14% más grande,
+        | conservando la misma proporción del diseño original.
         */
-        const scale = 148 / 105;
+        const scale = 120 / 105;
         const u = (value) => value * scale;
 
-        const pageWidth = 148;
-        const pageHeight = 210;
+        const pageWidth = 120;
+        const pageHeight = 148 * scale;
         const centerX = pageWidth / 2;
 
         const doc = new jsPDF({
