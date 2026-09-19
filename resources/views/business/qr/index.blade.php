@@ -707,9 +707,9 @@ async function downloadQR() {
             return doc;
         };
 
-        // 1) PDF A6: 105 x 148 mm
-        const pdfA6 = await generatePdf(105, 148);
-        pdfA6.save(`qr-lealtad-${cardData.slug || 'negocio'}-A6.pdf`);
+        // 1) PDF A5: 148 x 210 mm
+        const pdfA5 = await generatePdf(148, 210);
+        pdfA5.save(`qr-lealtad-${cardData.slug || 'negocio'}-A5.pdf`);
 
         // 2) PDF personalizado: 120 x 169 mm
         const pdf120 = await generatePdf(120, 169);
