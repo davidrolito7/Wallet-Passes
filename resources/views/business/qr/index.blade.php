@@ -225,7 +225,7 @@ async function downloadQR() {
     const originalLabel = downloadBtn.textContent;
 
     downloadBtn.disabled = true;
-    downloadBtn.textContent = 'Generando PDF...';
+    downloadBtn.textContent = 'Generando PDFs...';
 
     try {
         const { jsPDF } = window.jspdf;
@@ -236,39 +236,6 @@ async function downloadQR() {
 
         const qrDataUrl = await buildHighResQrDataUrl();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Tamaño del PDF
-        |--------------------------------------------------------------------------
-        | Antes: A6 = 105 x 148 mm.
-        | Ahora: 120 x 169.14 mm, aproximadamente 14% más grande,
-        | conservando la misma proporción del diseño original.
-        */
-        const scale = 120 / 105;
-        const u = (value) => value * scale;
-
-        const pageWidth = 120;
-        const pageHeight = 148 * scale;
-        const centerX = pageWidth / 2;
-
-        const doc = new jsPDF({
-            unit: 'mm',
-            format: [pageWidth, pageHeight],
-            orientation: 'portrait',
-            compress: true
-        });
-
-        /*
-        |--------------------------------------------------------------------------
-        | Preparar PNG para impresión
-        |--------------------------------------------------------------------------
-        | Algunas impresoras/PDF renderers interpretan mal el canal alfa de PNG
-        | transparentes y muestran un fondo gris/oscuro al imprimir.
-        |
-        | Para evitarlo, aplanamos únicamente las imágenes decorativas contra
-        | el mismo color de fondo del PDF y las insertamos como JPEG de alta
-        | calidad. El QR se mantiene como PNG para conservar máxima nitidez.
-        */
         const flattenForPrint = async (imageData, backgroundRgb) => {
             const img = new Image();
 
@@ -295,440 +262,464 @@ async function downloadQR() {
             };
         };
 
-        let messageFont = {
-            family: 'helvetica',
-            style: 'bold'
-        };
+        /**
+         * Genera el mismo diseño en el tamaño indicado.
+         * El diseño base fue creado para A6 (105 x 148 mm), por eso
+         * todo se escala a partir del ancho.
+         */
+        const generatePdf = async (pageWidth, pageHeight) => {
+            const scale = pageWidth / 105;
+            const u = (value) => value * scale;
+            const centerX = pageWidth / 2;
 
-        try {
-            const fontBase64 = await loadFontBase64(cardData.fontUrl);
+            const doc = new jsPDF({
+                unit: 'mm',
+                format: [pageWidth, pageHeight],
+                orientation: 'portrait',
+                compress: true
+            });
 
-            doc.addFileToVFS(
-                'Poppins-SemiBold.ttf',
-                fontBase64
-            );
-
-            doc.addFont(
-                'Poppins-SemiBold.ttf',
-                'Poppins',
-                'normal'
-            );
-
-            messageFont = {
-                family: 'Poppins',
-                style: 'normal'
+            let messageFont = {
+                family: 'helvetica',
+                style: 'bold'
             };
-        } catch (e) {
-            // Si falla la fuente seguimos con Helvetica.
-        }
 
-        let accentFont = {
-            family: 'helvetica',
-            style: 'italic'
-        };
-
-        try {
-            const accentBase64 = await loadFontBase64(cardData.accentFontUrl);
-
-            doc.addFileToVFS(
-                'PTSerif-BoldItalic.ttf',
-                accentBase64
-            );
-
-            doc.addFont(
-                'PTSerif-BoldItalic.ttf',
-                'PTSerif',
-                'bolditalic'
-            );
-
-            accentFont = {
-                family: 'PTSerif',
-                style: 'bolditalic'
-            };
-        } catch (e) {
-            // Si falla seguimos con Helvetica itálica.
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Fondo
-        |--------------------------------------------------------------------------
-        */
-
-        doc.setFillColor(
-            primaryColor[0],
-            primaryColor[1],
-            primaryColor[2]
-        );
-
-        doc.rect(
-            0,
-            0,
-            pageWidth,
-            pageHeight,
-            'F'
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Logo del negocio
-        |--------------------------------------------------------------------------
-        */
-
-        const logoBandTop = u(9);
-        const logoBandHeight = u(20);
-
-        if (cardData.logoUrl) {
             try {
-                const originalLogo = await loadImageData(cardData.logoUrl);
-                const logo = await flattenForPrint(originalLogo, primaryColor);
+                const fontBase64 = await loadFontBase64(cardData.fontUrl);
 
-                const maxW = u(58);
-                const maxH = u(18);
-
-                const ratio = Math.min(
-                    maxW / logo.width,
-                    maxH / logo.height
+                doc.addFileToVFS(
+                    'Poppins-SemiBold.ttf',
+                    fontBase64
                 );
 
-                const w = logo.width * ratio;
-                const h = logo.height * ratio;
+                doc.addFont(
+                    'Poppins-SemiBold.ttf',
+                    'Poppins',
+                    'normal'
+                );
 
+                messageFont = {
+                    family: 'Poppins',
+                    style: 'normal'
+                };
+            } catch (e) {
+                // Si falla la fuente seguimos con Helvetica.
+            }
+
+            let accentFont = {
+                family: 'helvetica',
+                style: 'italic'
+            };
+
+            try {
+                const accentBase64 = await loadFontBase64(cardData.accentFontUrl);
+
+                doc.addFileToVFS(
+                    'PTSerif-BoldItalic.ttf',
+                    accentBase64
+                );
+
+                doc.addFont(
+                    'PTSerif-BoldItalic.ttf',
+                    'PTSerif',
+                    'bolditalic'
+                );
+
+                accentFont = {
+                    family: 'PTSerif',
+                    style: 'bolditalic'
+                };
+            } catch (e) {
+                // Si falla seguimos con Helvetica itálica.
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Fondo
+            |--------------------------------------------------------------------------
+            */
+
+            doc.setFillColor(
+                primaryColor[0],
+                primaryColor[1],
+                primaryColor[2]
+            );
+
+            doc.rect(
+                0,
+                0,
+                pageWidth,
+                pageHeight,
+                'F'
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Logo del negocio
+            |--------------------------------------------------------------------------
+            */
+
+            const logoBandTop = u(9);
+            const logoBandHeight = u(20);
+
+            if (cardData.logoUrl) {
+                try {
+                    const originalLogo = await loadImageData(cardData.logoUrl);
+                    const logo = await flattenForPrint(originalLogo, primaryColor);
+
+                    const maxW = u(58);
+                    const maxH = u(18);
+
+                    const ratio = Math.min(
+                        maxW / logo.width,
+                        maxH / logo.height
+                    );
+
+                    const w = logo.width * ratio;
+                    const h = logo.height * ratio;
+
+                    doc.addImage(
+                        logo.dataUrl,
+                        'JPEG',
+                        centerX - w / 2,
+                        logoBandTop + (logoBandHeight - h) / 2,
+                        w,
+                        h,
+                        undefined,
+                        'FAST'
+                    );
+                } catch (e) {
+                    // Si falla el logo seguimos.
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Separador
+            |--------------------------------------------------------------------------
+            */
+
+            doc.setFillColor(
+                labelColor[0],
+                labelColor[1],
+                labelColor[2]
+            );
+
+            doc.roundedRect(
+                centerX - u(5),
+                u(34),
+                u(10),
+                u(0.6),
+                u(0.3),
+                u(0.3),
+                'F'
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Título principal
+            |--------------------------------------------------------------------------
+            */
+
+            doc.setFont(
+                messageFont.family,
+                messageFont.style
+            );
+
+            doc.setFontSize(14.5 * scale);
+
+            doc.setTextColor(
+                secondaryColor[0],
+                secondaryColor[1],
+                secondaryColor[2]
+            );
+
+            doc.text(
+                'Tu lealtad tiene',
+                centerX,
+                u(43.5),
+                {
+                    align: 'center'
+                }
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Recompensa
+            |--------------------------------------------------------------------------
+            */
+
+            doc.setFont(
+                accentFont.family,
+                accentFont.style
+            );
+
+            doc.setFontSize(21 * scale);
+
+            doc.setTextColor(
+                secondaryColor[0],
+                secondaryColor[1],
+                secondaryColor[2]
+            );
+
+            doc.text(
+                'recompensa',
+                centerX,
+                u(52),
+                {
+                    align: 'center'
+                }
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Texto explicativo
+            |--------------------------------------------------------------------------
+            */
+
+            const mutedTextColor = [
+                Math.round(
+                    secondaryColor[0] * 0.82 +
+                    primaryColor[0] * 0.18
+                ),
+                Math.round(
+                    secondaryColor[1] * 0.82 +
+                    primaryColor[1] * 0.18
+                ),
+                Math.round(
+                    secondaryColor[2] * 0.82 +
+                    primaryColor[2] * 0.18
+                ),
+            ];
+
+            doc.setFont(
+                messageFont.family,
+                messageFont.style
+            );
+
+            doc.setFontSize(8.4 * scale);
+
+            doc.setTextColor(
+                mutedTextColor[0],
+                mutedTextColor[1],
+                mutedTextColor[2]
+            );
+
+            const secondaryMessage =
+                'Escanea el código y agrega nuestra tarjeta de lealtad.';
+
+            const secondaryLines = doc.splitTextToSize(
+                secondaryMessage,
+                u(74)
+            );
+
+            doc.text(
+                secondaryLines,
+                centerX,
+                u(60.5),
+                {
+                    align: 'center',
+                    lineHeightFactor: 1.25
+                }
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Acumula · Disfruta · Repite
+            |--------------------------------------------------------------------------
+            */
+
+            doc.setFont(
+                messageFont.family,
+                messageFont.style
+            );
+
+            doc.setFontSize(6.2 * scale);
+
+            doc.setTextColor(
+                labelColor[0],
+                labelColor[1],
+                labelColor[2]
+            );
+
+            doc.text(
+                'ACUMULA  ·  DISFRUTA  ·  REPITE',
+                centerX,
+                u(69.5),
+                {
+                    align: 'center',
+                    charSpace: 0.28 * scale
+                }
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | QR
+            |--------------------------------------------------------------------------
+            */
+
+            const badgeHeight = u(9);
+            const badgeGapBelowQr = u(7);
+            const bottomSafeLimit = u(142);
+
+            let qrBoxSize = u(56);
+            const qrBoxTop = u(74);
+
+            if (
+                qrBoxTop +
+                qrBoxSize +
+                badgeGapBelowQr +
+                badgeHeight >
+                bottomSafeLimit
+            ) {
+                qrBoxSize = Math.max(
+                    u(44),
+                    bottomSafeLimit -
+                    badgeGapBelowQr -
+                    badgeHeight -
+                    qrBoxTop
+                );
+            }
+
+            const qrBoxX =
+                centerX -
+                qrBoxSize / 2;
+
+            /*
+            |--------------------------------------------------------------------------
+            | Sombra del QR
+            |--------------------------------------------------------------------------
+            */
+
+            doc.setFillColor(
+                Math.round(primaryColor[0] * 0.75),
+                Math.round(primaryColor[1] * 0.75),
+                Math.round(primaryColor[2] * 0.75)
+            );
+
+            doc.roundedRect(
+                qrBoxX + u(0.8),
+                qrBoxTop + u(0.8),
+                qrBoxSize,
+                qrBoxSize,
+                u(5),
+                u(5),
+                'F'
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Caja blanca del QR
+            |--------------------------------------------------------------------------
+            */
+
+            doc.setFillColor(
+                255,
+                255,
+                255
+            );
+
+            doc.roundedRect(
+                qrBoxX,
+                qrBoxTop,
+                qrBoxSize,
+                qrBoxSize,
+                u(5),
+                u(5),
+                'F'
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Imagen QR
+            |--------------------------------------------------------------------------
+            */
+
+            const qrSize =
+                qrBoxSize - u(8);
+
+            doc.addImage(
+                qrDataUrl,
+                'PNG',
+                centerX - qrSize / 2,
+                qrBoxTop + (qrBoxSize - qrSize) / 2,
+                qrSize,
+                qrSize
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Apple Wallet / Google Wallet
+            |--------------------------------------------------------------------------
+            */
+
+            const badgeGap = u(4);
+
+            const badgeTop =
+                qrBoxTop +
+                qrBoxSize +
+                badgeGapBelowQr;
+
+            const badges = [];
+
+            for (const url of [
+                cardData.appleWalletUrl,
+                cardData.googleWalletUrl
+            ]) {
+                const originalImg = await loadImageData(url);
+                const img = await flattenForPrint(originalImg, primaryColor);
+
+                badges.push({
+                    dataUrl: img.dataUrl,
+                    width: badgeHeight * (img.width / img.height),
+                    height: badgeHeight,
+                });
+            }
+
+            const totalWidth =
+                badges.reduce(
+                    (sum, badge) => sum + badge.width,
+                    0
+                ) +
+                badgeGap * (badges.length - 1);
+
+            let badgeX =
+                centerX -
+                totalWidth / 2;
+
+            for (const badge of badges) {
                 doc.addImage(
-                    logo.dataUrl,
+                    badge.dataUrl,
                     'JPEG',
-                    centerX - w / 2,
-                    logoBandTop + (logoBandHeight - h) / 2,
-                    w,
-                    h,
+                    badgeX,
+                    badgeTop,
+                    badge.width,
+                    badge.height,
                     undefined,
                     'FAST'
                 );
-            } catch (e) {
-                // Si falla el logo seguimos.
+
+                badgeX +=
+                    badge.width +
+                    badgeGap;
             }
-        }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Separador
-        |--------------------------------------------------------------------------
-        */
+            return doc;
+        };
 
-        doc.setFillColor(
-            labelColor[0],
-            labelColor[1],
-            labelColor[2]
-        );
+        // 1) PDF A6: 105 x 148 mm
+        const pdfA6 = await generatePdf(105, 148);
+        pdfA6.save(`qr-lealtad-${cardData.slug || 'negocio'}-A6.pdf`);
 
-        doc.roundedRect(
-            centerX - u(5),
-            u(34),
-            u(10),
-            u(0.6),
-            u(0.3),
-            u(0.3),
-            'F'
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Título principal
-        |--------------------------------------------------------------------------
-        */
-
-        doc.setFont(
-            messageFont.family,
-            messageFont.style
-        );
-
-        doc.setFontSize(14.5 * scale);
-
-        doc.setTextColor(
-            secondaryColor[0],
-            secondaryColor[1],
-            secondaryColor[2]
-        );
-
-        doc.text(
-            'Tu lealtad tiene',
-            centerX,
-            u(43.5),
-            {
-                align: 'center'
-            }
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Recompensa
-        |--------------------------------------------------------------------------
-        */
-
-        doc.setFont(
-            accentFont.family,
-            accentFont.style
-        );
-
-        doc.setFontSize(21 * scale);
-
-        doc.setTextColor(
-            secondaryColor[0],
-            secondaryColor[1],
-            secondaryColor[2]
-        );
-
-        doc.text(
-            'recompensa',
-            centerX,
-            u(52),
-            {
-                align: 'center'
-            }
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Texto explicativo
-        |--------------------------------------------------------------------------
-        */
-
-        const mutedTextColor = [
-            Math.round(
-                secondaryColor[0] * 0.82 +
-                primaryColor[0] * 0.18
-            ),
-            Math.round(
-                secondaryColor[1] * 0.82 +
-                primaryColor[1] * 0.18
-            ),
-            Math.round(
-                secondaryColor[2] * 0.82 +
-                primaryColor[2] * 0.18
-            ),
-        ];
-
-        doc.setFont(
-            messageFont.family,
-            messageFont.style
-        );
-
-        doc.setFontSize(8.4 * scale);
-
-        doc.setTextColor(
-            mutedTextColor[0],
-            mutedTextColor[1],
-            mutedTextColor[2]
-        );
-
-        const secondaryMessage =
-            'Escanea el código y agrega nuestra tarjeta de lealtad.';
-
-        const secondaryLines = doc.splitTextToSize(
-            secondaryMessage,
-            u(74)
-        );
-
-        doc.text(
-            secondaryLines,
-            centerX,
-            u(60.5),
-            {
-                align: 'center',
-                lineHeightFactor: 1.25
-            }
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Acumula · Disfruta · Repite
-        |--------------------------------------------------------------------------
-        */
-
-        doc.setFont(
-            messageFont.family,
-            messageFont.style
-        );
-
-        doc.setFontSize(6.2 * scale);
-
-        doc.setTextColor(
-            labelColor[0],
-            labelColor[1],
-            labelColor[2]
-        );
-
-        doc.text(
-            'ACUMULA  ·  DISFRUTA  ·  REPITE',
-            centerX,
-            u(69.5),
-            {
-                align: 'center',
-                charSpace: 0.28 * scale
-            }
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | QR
-        |--------------------------------------------------------------------------
-        */
-
-        const badgeHeight = u(9);
-        const badgeGapBelowQr = u(7);
-        const bottomSafeLimit = u(142);
-
-        let qrBoxSize = u(56);
-        const qrBoxTop = u(74);
-
-        if (
-            qrBoxTop +
-            qrBoxSize +
-            badgeGapBelowQr +
-            badgeHeight >
-            bottomSafeLimit
-        ) {
-            qrBoxSize = Math.max(
-                u(44),
-                bottomSafeLimit -
-                badgeGapBelowQr -
-                badgeHeight -
-                qrBoxTop
-            );
-        }
-
-        const qrBoxX =
-            centerX -
-            qrBoxSize / 2;
-
-        /*
-        |--------------------------------------------------------------------------
-        | Sombra del QR
-        |--------------------------------------------------------------------------
-        */
-
-        doc.setFillColor(
-            Math.round(primaryColor[0] * 0.75),
-            Math.round(primaryColor[1] * 0.75),
-            Math.round(primaryColor[2] * 0.75)
-        );
-
-        doc.roundedRect(
-            qrBoxX + u(0.8),
-            qrBoxTop + u(0.8),
-            qrBoxSize,
-            qrBoxSize,
-            u(5),
-            u(5),
-            'F'
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Caja blanca del QR
-        |--------------------------------------------------------------------------
-        */
-
-        doc.setFillColor(
-            255,
-            255,
-            255
-        );
-
-        doc.roundedRect(
-            qrBoxX,
-            qrBoxTop,
-            qrBoxSize,
-            qrBoxSize,
-            u(5),
-            u(5),
-            'F'
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Imagen QR
-        |--------------------------------------------------------------------------
-        */
-
-        const qrSize =
-            qrBoxSize - u(8);
-
-        doc.addImage(
-            qrDataUrl,
-            'PNG',
-            centerX - qrSize / 2,
-            qrBoxTop + (qrBoxSize - qrSize) / 2,
-            qrSize,
-            qrSize
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Apple Wallet / Google Wallet
-        |--------------------------------------------------------------------------
-        */
-
-        const badgeGap = u(4);
-
-        const badgeTop =
-            qrBoxTop +
-            qrBoxSize +
-            badgeGapBelowQr;
-
-        const badges = [];
-
-        for (const url of [
-            cardData.appleWalletUrl,
-            cardData.googleWalletUrl
-        ]) {
-            const originalImg = await loadImageData(url);
-            const img = await flattenForPrint(originalImg, primaryColor);
-
-            badges.push({
-                dataUrl: img.dataUrl,
-                width: badgeHeight * (img.width / img.height),
-                height: badgeHeight,
-            });
-        }
-
-        const totalWidth =
-            badges.reduce(
-                (sum, badge) => sum + badge.width,
-                0
-            ) +
-            badgeGap * (badges.length - 1);
-
-        let badgeX =
-            centerX -
-            totalWidth / 2;
-
-        for (const badge of badges) {
-            doc.addImage(
-                badge.dataUrl,
-                'JPEG',
-                badgeX,
-                badgeTop,
-                badge.width,
-                badge.height,
-                undefined,
-                'FAST'
-            );
-
-            badgeX +=
-                badge.width +
-                badgeGap;
-        }
-
-        doc.save(
-            `qr-lealtad-${cardData.slug || 'negocio'}.pdf`
-        );
+        // 2) PDF personalizado: 120 x 169 mm
+        const pdf120 = await generatePdf(120, 169);
+        pdf120.save(`qr-lealtad-${cardData.slug || 'negocio'}-120x169mm.pdf`);
 
     } catch (e) {
         console.error(e);
 
         alert(
-            'Ocurrió un error al generar el PDF. Intenta de nuevo.'
+            'Ocurrió un error al generar los PDFs. Intenta de nuevo.'
         );
     } finally {
         downloadBtn.disabled = false;
