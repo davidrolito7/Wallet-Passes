@@ -68,9 +68,7 @@
                             </th>
                             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
                             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nacimiento</th>
-                            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Programa</th>
                             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Sellos</th>
-                            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
                             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Último sello</th>
                             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Registro</th>
                             <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
@@ -89,7 +87,6 @@
                                 <td class="px-5 py-3.5 text-gray-500 text-xs">
                                     {{ $card->birth_date?->format('d/m/Y') ?? '—' }}
                                 </td>
-                                <td class="px-5 py-3.5 text-gray-600 text-xs">{{ $card->loyaltyProgram->name }}</td>
                                 <td class="px-5 py-3.5">
                                     <div class="flex items-center gap-2">
                                         <div class="w-16 bg-gray-200 rounded-full h-1.5">
@@ -101,13 +98,6 @@
                                             {{ $card->stamps_collected }}/{{ $card->loyaltyProgram->total_stamps }}
                                         </span>
                                     </div>
-                                </td>
-                                <td class="px-5 py-3.5">
-                                    @if($card->is_completed)
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Completada</span>
-                                    @else
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Activa</span>
-                                    @endif
                                 </td>
                                 <td class="px-5 py-3.5 text-gray-400 text-xs hidden lg:table-cell">
                                     {{ $card->last_stamp_at?->format('d/m/Y H:i') ?? '—' }}
