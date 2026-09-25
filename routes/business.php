@@ -31,6 +31,8 @@ Route::prefix('business')->name('business.')->group(function () {
 
         Route::get('/customers', [CustomersController::class, 'index'])->name('customers');
         Route::post('/customers/message', [CustomersController::class, 'sendMessage'])->name('customers.message');
+        Route::post('/customers/{card}/visit', [CustomersController::class, 'addVisit'])->name('customers.visit');
+        Route::delete('/customers/{card}', [CustomersController::class, 'destroy'])->name('customers.destroy');
 
         Route::get('/qr', [QrController::class, 'index'])->name('qr');
     });

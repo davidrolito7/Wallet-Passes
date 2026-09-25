@@ -84,7 +84,22 @@
 
 @push('scripts')
 <script>
-if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && !sessionStorage.getItem('scanner_redirected')) {
+function shouldRedirectToScanner() {
+    if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        return true;
+    }
+
+    // iPadOS 13+ y algunas tablets Android reportan un user agent de escritorio,
+    // pero siguen siendo pantallas táctiles de tamaño tablet: las detectamos por
+    // soporte táctil + puntero "coarse" + tamaño de pantalla.
+    const isTouch = navigator.maxTouchPoints > 1 || 'ontouchstart' in window;
+    const isCoarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    const isTabletSize = Math.max(window.innerWidth, window.innerHeight) <= 1366;
+
+    return isTouch && isCoarsePointer && isTabletSize;
+}
+
+if (shouldRedirectToScanner() && !sessionStorage.getItem('scanner_redirected')) {
     sessionStorage.setItem('scanner_redirected', '1');
     window.location.replace('{{ route("business.scanner") }}');
 }

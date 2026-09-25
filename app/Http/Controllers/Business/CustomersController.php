@@ -10,6 +10,18 @@ use Illuminate\Support\Facades\Auth;
 
 class CustomersController extends Controller
 {
+    /**
+     * Períodos de inactividad disponibles para el filtro (clave => meses/semanas hacia atrás).
+     */
+    public const INACTIVE_PERIODS = [
+        '2w'  => '2 semanas',
+        '3w'  => '3 semanas',
+        '2m'  => '2 meses',
+        '4m'  => '4 meses',
+        '6m'  => '6 meses',
+        '12m' => '12 meses',
+    ];
+
     public function index(Request $request)
     {
         $business = Auth::guard('business')->user();
@@ -24,9 +36,31 @@ class CustomersController extends Controller
             });
         }
 
+        $inactive = $request->input('inactive');
+
+        if ($inactive && array_key_exists($inactive, self::INACTIVE_PERIODS)) {
+            $cutoff = $this->inactiveCutoff($inactive);
+
+            $query->where(function ($q) use ($cutoff) {
+                $q->whereNull('last_stamp_at')->orWhere('last_stamp_at', '<=', $cutoff);
+            });
+        }
+
         $cards = $query->latest()->paginate(20)->withQueryString();
 
-        return view('business.customers.index', compact('business', 'cards', 'search'));
+        return view('business.customers.index', compact('business', 'cards', 'search', 'inactive'));
+    }
+
+    private function inactiveCutoff(string $period): \Illuminate\Support\Carbon
+    {
+        return match ($period) {
+            '2w'  => now()->subWeeks(2),
+            '3w'  => now()->subWeeks(3),
+            '2m'  => now()->subMonths(2),
+            '4m'  => now()->subMonths(4),
+            '6m'  => now()->subMonths(6),
+            '12m' => now()->subMonths(12),
+        };
     }
 
     public function sendMessage(Request $request)
@@ -35,18 +69,13 @@ class CustomersController extends Controller
 
         $data = $request->validate([
             'message'    => ['required', 'string', 'max:150'],
-            'target'     => ['required', 'in:all,selected'],
-            'card_ids'   => ['required_if:target,selected', 'array'],
+            'card_ids'   => ['required', 'array', 'min:1'],
             'card_ids.*' => ['integer'],
         ]);
 
-        $query = LoyaltyCard::whereHas('loyaltyProgram', fn ($q) => $q->where('business_id', $business->id));
-
-        if ($data['target'] === 'selected') {
-            $query->whereIn('id', $data['card_ids'] ?? []);
-        }
-
-        $cards = $query->get();
+        $cards = LoyaltyCard::whereHas('loyaltyProgram', fn ($q) => $q->where('business_id', $business->id))
+            ->whereIn('id', $data['card_ids'])
+            ->get();
 
         $loyalty = app(LoyaltyService::class);
         $sent    = 0;
@@ -67,6 +96,36 @@ class CustomersController extends Controller
             $summary .= ' ' . $skipped . ' ' . ($skipped === 1 ? 'no tiene' : 'no tienen') . ' tarjeta digital activa y se omitió.';
         }
 
-        return redirect()->route('business.customers', $request->only('search'))->with('success', $summary);
+        return redirect()->route('business.customers', $request->only(['search', 'inactive']))->with('success', $summary);
+    }
+
+    public function addVisit(Request $request, LoyaltyCard $card)
+    {
+        $this->authorizeCard($card);
+
+        $data = $request->validate([
+            'count' => ['required', 'integer', 'min:1', 'max:20'],
+        ]);
+
+        app(LoyaltyService::class)->addStamp($card, $data['count'], recordedBy: 'manual');
+
+        return back()->with('success', 'Visita registrada para ' . $card->fullName() . '.');
+    }
+
+    public function destroy(LoyaltyCard $card)
+    {
+        $this->authorizeCard($card);
+
+        $name = $card->fullName();
+        $card->delete();
+
+        return back()->with('success', 'Cliente ' . $name . ' eliminado.');
+    }
+
+    private function authorizeCard(LoyaltyCard $card): void
+    {
+        $business = Auth::guard('business')->user();
+
+        abort_unless($card->loyaltyProgram->business_id === $business->id, 403);
     }
 }

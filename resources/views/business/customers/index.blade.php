@@ -12,7 +12,14 @@
             class="flex-shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
         Buscar
     </button>
-    @if($search)
+    <select name="inactive" onchange="this.form.submit()"
+            class="flex-shrink-0 px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <option value="">No ha vuelto en...</option>
+        @foreach(\App\Http\Controllers\Business\CustomersController::INACTIVE_PERIODS as $value => $label)
+            <option value="{{ $value }}" {{ $inactive === $value ? 'selected' : '' }}>{{ $label }} o más</option>
+        @endforeach
+    </select>
+    @if($search || $inactive)
         <a href="{{ route('business.customers') }}"
            class="flex-shrink-0 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
             Limpiar
@@ -39,7 +46,6 @@
 
 <form method="POST" action="{{ route('business.customers.message') }}" id="message-form">
     @csrf
-    <input type="hidden" name="target" id="message-target" value="{{ old('target', 'all') }}">
 
     @if($cards->isEmpty())
         <div class="bg-white rounded-xl border border-gray-200 px-6 py-16 text-center text-gray-400 text-sm">
@@ -67,6 +73,7 @@
                             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
                             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Último sello</th>
                             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Registro</th>
+                            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -107,6 +114,22 @@
                                 </td>
                                 <td class="px-5 py-3.5 text-gray-400 text-xs hidden lg:table-cell">
                                     {{ $card->created_at->format('d/m/Y') }}
+                                </td>
+                                <td class="px-5 py-3.5">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button type="button" onclick="openVisitModal({{ $card->id }}, @js($card->fullName()))"
+                                                title="Agregar visita manual" class="p-1.5 rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                            </svg>
+                                        </button>
+                                        <button type="button" onclick="openDeleteModal({{ $card->id }}, @js($card->fullName()))"
+                                                title="Eliminar cliente" class="p-1.5 rounded-md text-red-600 hover:bg-red-50 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
@@ -151,9 +174,25 @@
                             {{ $card->stamps_collected }}/{{ $card->loyaltyProgram->total_stamps }}
                         </span>
                     </div>
-                    <div class="flex items-center justify-between text-xs text-gray-400">
+                    <div class="flex items-center justify-between text-xs text-gray-400 mb-3">
                         <span>Nac: {{ $card->birth_date?->format('d/m/Y') ?? '—' }}</span>
                         <span>{{ $card->created_at->format('d/m/Y') }}</span>
+                    </div>
+                    <div class="flex items-center gap-2 pt-2 border-t border-gray-100">
+                        <button type="button" onclick="openVisitModal({{ $card->id }}, @js($card->fullName()))"
+                                class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Visita
+                        </button>
+                        <button type="button" onclick="openDeleteModal({{ $card->id }}, @js($card->fullName()))"
+                                class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                            Eliminar
+                        </button>
                     </div>
                 </div>
             @endforeach
@@ -167,7 +206,7 @@
     {{-- ── Modal: enviar mensaje ──────────────────────────────────────────── --}}
     <div id="message-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center justify-between mb-1">
                 <h2 class="text-base font-semibold text-gray-900">Enviar mensaje a tus clientes</h2>
                 <button type="button" onclick="closeMessageModal()" class="text-gray-400 hover:text-gray-600">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -175,27 +214,7 @@
                     </svg>
                 </button>
             </div>
-
-            <div class="space-y-2 mb-4">
-                <label class="flex items-start gap-2.5 p-3 rounded-lg border border-gray-200 cursor-pointer has-[:checked]:border-indigo-400 has-[:checked]:bg-indigo-50">
-                    <input type="radio" name="target-choice" value="all" onchange="setTarget('all')"
-                           {{ old('target', 'all') === 'all' ? 'checked' : '' }}
-                           class="mt-0.5 h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
-                    <span class="text-sm">
-                        <span class="block font-medium text-gray-800">Todos mis clientes</span>
-                        <span class="block text-xs text-gray-500 mt-0.5">Se envía a todas tus tarjetas con Wallet activo, sin importar la página o el filtro de búsqueda actual.</span>
-                    </span>
-                </label>
-                <label class="flex items-start gap-2.5 p-3 rounded-lg border border-gray-200 cursor-pointer has-[:checked]:border-indigo-400 has-[:checked]:bg-indigo-50">
-                    <input type="radio" name="target-choice" value="selected" onchange="setTarget('selected')"
-                           {{ old('target') === 'selected' ? 'checked' : '' }}
-                           class="mt-0.5 h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
-                    <span class="text-sm">
-                        <span class="block font-medium text-gray-800">Solo los que selecciones en la tabla</span>
-                        <span class="block text-xs text-gray-500 mt-0.5" id="selected-count-label">0 clientes seleccionados en esta página.</span>
-                    </span>
-                </label>
-            </div>
+            <p class="text-xs text-gray-500 mb-4" id="selected-count-label">0 clientes seleccionados en la tabla.</p>
 
             <label class="block text-sm font-medium text-gray-700 mb-1">Mensaje</label>
             <textarea name="message" id="message-textarea" rows="3" maxlength="150" required
@@ -219,21 +238,110 @@
         </div>
     </div>
 </form>
+
+{{-- ── Modal: agregar visita manual ───────────────────────────────────── --}}
+<div id="visit-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-semibold text-gray-900">Agregar visita manual</h2>
+            <button type="button" onclick="closeVisitModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <p class="text-sm text-gray-600 mb-4">Cliente: <span id="visit-card-name" class="font-medium text-gray-900"></span></p>
+        <form method="POST" id="visit-form">
+            @csrf
+            <label class="block text-sm font-medium text-gray-700 mb-1">Sellos a agregar</label>
+            <input type="number" name="count" id="visit-count" min="1" max="20" value="1" required
+                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <div class="flex justify-end gap-2 mt-5">
+                <button type="button" onclick="closeVisitModal()"
+                        class="px-4 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition-colors">
+                    Agregar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- ── Modal: eliminar cliente ─────────────────────────────────────────── --}}
+<div id="delete-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-semibold text-gray-900">Eliminar cliente</h2>
+            <button type="button" onclick="closeDeleteModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <p class="text-sm text-gray-600 mb-5">
+            ¿Seguro que quieres eliminar a <span id="delete-card-name" class="font-medium text-gray-900"></span>?
+            Esta acción no se puede deshacer y perderá su tarjeta de lealtad.
+        </p>
+        <form method="POST" id="delete-form">
+            @csrf
+            @method('DELETE')
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="closeDeleteModal()"
+                        class="px-4 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition-colors">
+                    Eliminar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
 <script>
+const visitUrlTemplate  = "{{ route('business.customers.visit', ['card' => '__ID__']) }}";
+const deleteUrlTemplate = "{{ route('business.customers.destroy', ['card' => '__ID__']) }}";
+
+function openVisitModal(id, name) {
+    document.getElementById('visit-card-name').textContent = name;
+    document.getElementById('visit-count').value = 1;
+    document.getElementById('visit-form').action = visitUrlTemplate.replace('__ID__', id);
+    document.getElementById('visit-modal').classList.remove('hidden');
+    document.getElementById('visit-modal').classList.add('flex');
+}
+function closeVisitModal() {
+    document.getElementById('visit-modal').classList.add('hidden');
+    document.getElementById('visit-modal').classList.remove('flex');
+}
+
+function openDeleteModal(id, name) {
+    document.getElementById('delete-card-name').textContent = name;
+    document.getElementById('delete-form').action = deleteUrlTemplate.replace('__ID__', id);
+    document.getElementById('delete-modal').classList.remove('hidden');
+    document.getElementById('delete-modal').classList.add('flex');
+}
+function closeDeleteModal() {
+    document.getElementById('delete-modal').classList.add('hidden');
+    document.getElementById('delete-modal').classList.remove('flex');
+}
+
 function openMessageModal() {
+    if (document.querySelectorAll('.customer-checkbox:checked').length === 0) {
+        alert('Selecciona al menos un cliente en la tabla para enviarle un mensaje.');
+        return;
+    }
     document.getElementById('message-modal').classList.remove('hidden');
     document.getElementById('message-modal').classList.add('flex');
 }
 function closeMessageModal() {
     document.getElementById('message-modal').classList.add('hidden');
     document.getElementById('message-modal').classList.remove('flex');
-}
-
-function setTarget(value) {
-    document.getElementById('message-target').value = value;
 }
 
 function toggleAllCheckboxes(source) {
@@ -245,18 +353,12 @@ function onCheckboxChange() {
     const checked = document.querySelectorAll('.customer-checkbox:checked').length;
     const label = document.getElementById('selected-count-label');
     if (label) {
-        label.textContent = checked + (checked === 1 ? ' cliente seleccionado en esta página.' : ' clientes seleccionados en esta página.');
+        label.textContent = checked + (checked === 1 ? ' cliente seleccionado en la tabla.' : ' clientes seleccionados en la tabla.');
     }
 
     const selectAll = document.getElementById('select-all-checkbox');
     const total = document.querySelectorAll('.customer-checkbox').length;
     if (selectAll) selectAll.checked = total > 0 && checked === total;
-
-    // Elegir un cliente específico cambia automáticamente el destino a "seleccionados".
-    if (checked > 0) {
-        document.querySelectorAll('input[name="target-choice"]').forEach(r => r.checked = r.value === 'selected');
-        setTarget('selected');
-    }
 }
 
 @if($errors->any())
