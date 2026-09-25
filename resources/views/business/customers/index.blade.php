@@ -116,12 +116,14 @@
                                     {{ $card->created_at->format('d/m/Y') }}
                                 </td>
                                 <td class="px-5 py-3.5">
-                                    <div class="flex items-center justify-end gap-1">
+                                    <div class="flex items-center justify-end gap-1.5">
                                         <button type="button" onclick="openVisitModal({{ $card->id }}, @js($card->fullName()))"
-                                                title="Agregar visita manual" class="p-1.5 rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                title="Agregar visita manual"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                             </svg>
+                                            Visita
                                         </button>
                                         <button type="button" onclick="openDeleteModal({{ $card->id }}, @js($card->fullName()))"
                                                 title="Eliminar cliente" class="p-1.5 rounded-md text-red-600 hover:bg-red-50 transition-colors">
