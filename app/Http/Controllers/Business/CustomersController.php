@@ -102,7 +102,7 @@ class CustomersController extends Controller
         $this->authorizeCard($card);
 
         $data = $request->validate([
-            'count' => ['required', 'integer', 'min:1', 'max:20'],
+            'count' => ['required', 'integer', 'min:1', 'max:2'],
         ]);
 
         app(LoyaltyService::class)->addStamp($card, $data['count'], recordedBy: 'manual');
