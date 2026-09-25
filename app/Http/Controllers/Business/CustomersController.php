@@ -41,9 +41,7 @@ class CustomersController extends Controller
         if ($inactive && array_key_exists($inactive, self::INACTIVE_PERIODS)) {
             $cutoff = $this->inactiveCutoff($inactive);
 
-            $query->where(function ($q) use ($cutoff) {
-                $q->whereNull('last_stamp_at')->orWhere('last_stamp_at', '<=', $cutoff);
-            });
+            $query->whereNotNull('last_stamp_at')->where('last_stamp_at', '<=', $cutoff);
         }
 
         $cards = $query->latest()->paginate(20)->withQueryString();
